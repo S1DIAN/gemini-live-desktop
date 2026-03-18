@@ -1,0 +1,655 @@
+import type { DisplaySourceDescriptor } from "@shared/types/ipc";
+import type { SessionStatus } from "@shared/types/live";
+import type { ProactiveMode } from "@shared/types/settings";
+import type { TranscriptSpeaker, TranscriptStatus } from "@shared/types/transcript";
+
+export type Locale = "en" | "ru";
+
+export interface TranslationDictionary {
+  app: {
+    brand: string;
+    navigation: {
+      call: string;
+      settings: string;
+      diagnostics: string;
+    };
+    language: {
+      label: string;
+      english: string;
+      russian: string;
+    };
+  };
+  common: {
+    on: string;
+    off: string;
+    defaultOption: string;
+  };
+  callPage: {
+    heroTitle: string;
+    heroSubtitle: string;
+    micLevel: string;
+    manualTextTitle: string;
+    manualTextPlaceholder: string;
+    clearTranscript: string;
+    sendText: string;
+    actionNames: {
+      enableMicrophone: string;
+      shareScreen: string;
+      startCamera: string;
+    };
+    mediaSource: {
+      microphone: string;
+      screen: string;
+      camera: string;
+    };
+    modelHints: {
+      meaningfulScreenChange: string;
+    };
+    messages: {
+      connecting: string;
+      connectFailed: string;
+      pausing: string;
+      paused: string;
+      connectedReady: string;
+      disconnecting: string;
+      disconnected: string;
+      disconnectedReset: string;
+      microphoneDisabled: string;
+      microphoneEnabled: string;
+      screenStopped: string;
+      selectScreenFirst: string;
+      screenEndedOutside: string;
+      screenStarted: string;
+      cameraStopped: string;
+      cameraStarted: string;
+      microphoneStopped: string;
+      controlActionFailed: string;
+      voiceTelemetryFailed: string;
+      proactiveDecision: string;
+      cannotStartScreenWithoutSource: string;
+      screenRevoked: string;
+      transportFailed: (sourceLabel: string, message: string) => string;
+      transportFailedShort: (sourceLabel: string) => string;
+      mediaSessionRequired: (action: string) => string;
+    };
+  };
+  sessionControls: {
+    statuses: Record<SessionStatus, string>;
+    statusCopy: {
+      connecting: string;
+      connected: string;
+      disconnecting: string;
+      reconnecting: string;
+      disconnected: string;
+      idle: string;
+      defaultError: string;
+    };
+    connect: string;
+    pause: string;
+    disconnect: string;
+    connecting: string;
+    pausing: string;
+    disconnecting: string;
+    mic: string;
+    cam: string;
+    screen: string;
+    stopPlayback: string;
+  };
+  proactiveMode: {
+    title: string;
+    modes: Record<ProactiveMode, string>;
+    requestedApi: string;
+    runtimeApi: string;
+    notConnectedYet: string;
+    errorPrefix: string;
+  };
+  deviceSelectors: {
+    title: string;
+    microphone: string;
+    output: string;
+    camera: string;
+    screenSource: string;
+    selectSource: string;
+    displayKind: Record<DisplaySourceDescriptor["kind"], string>;
+  };
+  preview: {
+    screen: string;
+    camera: string;
+  };
+  transcript: {
+    title: string;
+    speaker: Record<TranscriptSpeaker, string>;
+    status: Record<TranscriptStatus, string>;
+  };
+  diagnostics: {
+    title: string;
+    exportLogs: string;
+    summary: string;
+    latestStatus: string;
+    effectiveSessionSnapshot: string;
+    eventTimeline: string;
+    noDiagnosticsYet: string;
+    noEffectiveConfigYet: string;
+    summaryKeys: {
+      totalEvents: string;
+      errorCount: string;
+      warnCount: string;
+      latestEvent: string;
+      category: string;
+      level: string;
+      message: string;
+      timestamp: string;
+      details: string;
+    };
+  };
+  settings: {
+    title: string;
+    lockBanner: string;
+    sections: {
+      api: string;
+      audio: string;
+      visual: string;
+      behavior: string;
+      diagnostics: string;
+    };
+    fields: {
+      savedKey: string;
+      noKeySaved: string;
+      deleteKey: string;
+      newKey: string;
+      pasteApiKey: string;
+      saveKey: string;
+      model: string;
+      apiVersionAuto: string;
+      apiVersionHelp: string;
+      voice: string;
+      thinkingBudget: string;
+      modelVolume: string;
+      autoActivityDetection: string;
+      manualVadMode: string;
+      detectionSensitivity: string;
+      silenceDurationMs: string;
+      prefixPaddingMs: string;
+      mediaResolution: string;
+      frameIntervalMs: string;
+      jpegQuality: string;
+      changeThreshold: string;
+      previewEnabled: string;
+      proactiveMode: string;
+      affectiveDialog: string;
+      systemPrompt: string;
+      proactivePolicy: string;
+      maxAutonomousFrequencyMs: string;
+      commentaryDuringSilenceOnly: string;
+      commentaryWhileIdleOnly: string;
+      verboseLogging: string;
+      exportPathHint: string;
+    };
+    options: {
+      mediaResolution: {
+        low: string;
+        medium: string;
+        high: string;
+      };
+      proactiveMode: Record<ProactiveMode, string>;
+    };
+    saveSettings: string;
+  };
+}
+
+export const translations: Record<Locale, TranslationDictionary> = {
+  en: {
+    app: {
+      brand: "Gemini Live Desktop",
+      navigation: {
+        call: "Call",
+        settings: "Settings",
+        diagnostics: "Diagnostics"
+      },
+      language: {
+        label: "Language",
+        english: "English",
+        russian: "Russian"
+      }
+    },
+    common: {
+      on: "On",
+      off: "Off",
+      defaultOption: "Default"
+    },
+    callPage: {
+      heroTitle: "Gemini Live Desktop",
+      heroSubtitle:
+        "Voice, screen and camera routed through an isolated live worker with capability gating and diagnostics.",
+      micLevel: "Mic level",
+      manualTextTitle: "Manual Text",
+      manualTextPlaceholder: "Send ordered client content",
+      clearTranscript: "Clear Transcript",
+      sendText: "Send Text",
+      actionNames: {
+        enableMicrophone: "enabling the microphone",
+        shareScreen: "sharing the screen",
+        startCamera: "starting the camera"
+      },
+      mediaSource: {
+        microphone: "microphone",
+        screen: "screen",
+        camera: "camera"
+      },
+      modelHints: {
+        meaningfulScreenChange:
+          "A meaningful screen change was detected. If it is helpful, comment briefly on the change."
+      },
+      messages: {
+        connecting: "Connecting to Gemini Live...",
+        connectFailed: "Connect failed",
+        pausing: "Pausing session...",
+        paused: "Session paused. Reconnect to continue the same chat.",
+        connectedReady: "Connected. Live session is ready.",
+        disconnecting: "Disconnecting...",
+        disconnected: "Disconnected.",
+        disconnectedReset:
+          "Disconnected. Session reset complete. Next connect starts a new chat.",
+        microphoneDisabled: "Microphone disabled.",
+        microphoneEnabled: "Microphone enabled.",
+        screenStopped: "Screen sharing stopped.",
+        selectScreenFirst: "Select a screen or window source first.",
+        screenEndedOutside: "Screen sharing ended outside the app.",
+        screenStarted: "Screen sharing started.",
+        cameraStopped: "Camera stopped.",
+        cameraStarted: "Camera started.",
+        microphoneStopped: "Microphone stopped",
+        controlActionFailed: "Control action failed",
+        voiceTelemetryFailed: "Failed to send voice turn telemetry",
+        proactiveDecision: "Proactive orchestrator decision",
+        cannotStartScreenWithoutSource:
+          "Cannot start screen capture without a selected source",
+        screenRevoked: "Screen sharing was revoked or stopped outside the app",
+        transportFailed: (sourceLabel, message) =>
+          `${sourceLabel} transport failed: ${message}`,
+        transportFailedShort: (sourceLabel) =>
+          `${sourceLabel} transport failed`,
+        mediaSessionRequired: (action) =>
+          `Connect a live session before ${action}.`
+      }
+    },
+    sessionControls: {
+      statuses: {
+        idle: "idle",
+        connecting: "connecting",
+        connected: "connected",
+        reconnecting: "reconnecting",
+        disconnecting: "disconnecting",
+        disconnected: "disconnected",
+        error: "error"
+      },
+      statusCopy: {
+        connecting: "Trying to open a live session.",
+        connected: "Live session is connected.",
+        disconnecting: "Closing the live session.",
+        reconnecting: "Connection dropped. Retrying automatically.",
+        disconnected: "Session closed.",
+        idle: "Ready to connect.",
+        defaultError: "The last session action failed."
+      },
+      connect: "Connect",
+      pause: "Pause",
+      disconnect: "Disconnect",
+      connecting: "Connecting...",
+      pausing: "Pausing...",
+      disconnecting: "Disconnecting...",
+      mic: "Mic",
+      cam: "Cam",
+      screen: "Screen",
+      stopPlayback: "Stop Playback"
+    },
+    proactiveMode: {
+      title: "Proactive Mode",
+      modes: {
+        off: "off",
+        pure: "pure",
+        assisted: "assisted"
+      },
+      requestedApi: "Requested API",
+      runtimeApi: "Runtime API",
+      notConnectedYet: "not connected yet",
+      errorPrefix: "Err:"
+    },
+    deviceSelectors: {
+      title: "Devices",
+      microphone: "Microphone",
+      output: "Output",
+      camera: "Camera",
+      screenSource: "Screen Source",
+      selectSource: "Select source",
+      displayKind: {
+        screen: "screen",
+        window: "window"
+      }
+    },
+    preview: {
+      screen: "Screen Preview",
+      camera: "Camera Preview"
+    },
+    transcript: {
+      title: "Transcript",
+      speaker: {
+        user: "User",
+        model: "Model",
+        system: "System"
+      },
+      status: {
+        partial: "partial",
+        final: "final"
+      }
+    },
+    diagnostics: {
+      title: "Diagnostics",
+      exportLogs: "Export Logs",
+      summary: "Summary",
+      latestStatus: "Latest Status",
+      effectiveSessionSnapshot: "Effective Session Snapshot",
+      eventTimeline: "Event Timeline",
+      noDiagnosticsYet: "No diagnostics yet",
+      noEffectiveConfigYet:
+        "No connect attempt has produced an effective config yet.",
+      summaryKeys: {
+        totalEvents: "totalEvents",
+        errorCount: "errorCount",
+        warnCount: "warnCount",
+        latestEvent: "latestEvent",
+        category: "category",
+        level: "level",
+        message: "message",
+        timestamp: "timestamp",
+        details: "details"
+      }
+    },
+    settings: {
+      title: "Settings",
+      lockBanner:
+        "Connect-time session options are locked while connected or paused with session continuation. Use Disconnect to apply new setup options. Realtime tuning stays available.",
+      sections: {
+        api: "API",
+        audio: "Audio",
+        visual: "Visual",
+        behavior: "Behavior",
+        diagnostics: "Diagnostics"
+      },
+      fields: {
+        savedKey: "Saved key",
+        noKeySaved: "No key saved",
+        deleteKey: "Delete",
+        newKey: "New key",
+        pasteApiKey: "Paste Gemini API key",
+        saveKey: "Save Key",
+        model: "Model",
+        apiVersionAuto: "API Version (auto)",
+        apiVersionHelp:
+          "Auto rule: v1alpha is used when Proactive Mode is not off or Affective Dialog is enabled.",
+        voice: "Voice",
+        thinkingBudget: "Thinking Budget",
+        modelVolume: "Model Volume",
+        autoActivityDetection: "Auto Activity Detection",
+        manualVadMode: "Manual VAD Mode",
+        detectionSensitivity: "Detection Sensitivity",
+        silenceDurationMs: "Silence Duration (ms)",
+        prefixPaddingMs: "Prefix Padding (ms)",
+        mediaResolution: "Media Resolution",
+        frameIntervalMs: "Frame Interval (ms)",
+        jpegQuality: "JPEG Quality",
+        changeThreshold: "Change Threshold",
+        previewEnabled: "Preview Enabled",
+        proactiveMode: "Proactive Mode",
+        affectiveDialog: "Affective Dialog",
+        systemPrompt: "System Prompt",
+        proactivePolicy: "Proactive Policy",
+        maxAutonomousFrequencyMs: "Max Autonomous Frequency (ms)",
+        commentaryDuringSilenceOnly: "Commentary During Silence Only",
+        commentaryWhileIdleOnly: "Commentary While User Idle Only",
+        verboseLogging: "Verbose Logging",
+        exportPathHint: "Export Path Hint"
+      },
+      options: {
+        mediaResolution: {
+          low: "Low",
+          medium: "Medium",
+          high: "High"
+        },
+        proactiveMode: {
+          off: "Off",
+          pure: "Pure",
+          assisted: "Assisted"
+        }
+      },
+      saveSettings: "Save Settings"
+    }
+  },
+  ru: {
+    app: {
+      brand: "Gemini Live Desktop",
+      navigation: {
+        call: "Звонок",
+        settings: "Настройки",
+        diagnostics: "Диагностика"
+      },
+      language: {
+        label: "Язык",
+        english: "English",
+        russian: "Русский"
+      }
+    },
+    common: {
+      on: "Вкл",
+      off: "Выкл",
+      defaultOption: "По умолчанию"
+    },
+    callPage: {
+      heroTitle: "Gemini Live Desktop",
+      heroSubtitle:
+        "Голос, экран и камера передаются через изолированный live-воркер с проверкой возможностей и диагностикой.",
+      micLevel: "Уровень микрофона",
+      manualTextTitle: "Ручной текст",
+      manualTextPlaceholder: "Отправить упорядоченный клиентский контент",
+      clearTranscript: "Очистить транскрипт",
+      sendText: "Отправить текст",
+      actionNames: {
+        enableMicrophone: "включением микрофона",
+        shareScreen: "демонстрацией экрана",
+        startCamera: "запуском камеры"
+      },
+      mediaSource: {
+        microphone: "микрофон",
+        screen: "экран",
+        camera: "камера"
+      },
+      modelHints: {
+        meaningfulScreenChange:
+          "A meaningful screen change was detected. If it is helpful, comment briefly on the change."
+      },
+      messages: {
+        connecting: "Подключение к Gemini Live...",
+        connectFailed: "Не удалось подключиться",
+        pausing: "Пауза сессии...",
+        paused: "Сессия на паузе. Подключитесь снова, чтобы продолжить этот чат.",
+        connectedReady: "Подключено. Live-сессия готова.",
+        disconnecting: "Отключение...",
+        disconnected: "Отключено.",
+        disconnectedReset:
+          "Отключено. Сессия полностью сброшена. Следующее подключение создаст новый чат.",
+        microphoneDisabled: "Микрофон выключен.",
+        microphoneEnabled: "Микрофон включён.",
+        screenStopped: "Демонстрация экрана остановлена.",
+        selectScreenFirst: "Сначала выберите источник экрана или окна.",
+        screenEndedOutside: "Демонстрация экрана завершена вне приложения.",
+        screenStarted: "Демонстрация экрана запущена.",
+        cameraStopped: "Камера остановлена.",
+        cameraStarted: "Камера запущена.",
+        microphoneStopped: "Микрофон остановлен",
+        controlActionFailed: "Ошибка действия управления",
+        voiceTelemetryFailed: "Не удалось отправить телеметрию голосового хода",
+        proactiveDecision: "Решение проактивного оркестратора",
+        cannotStartScreenWithoutSource:
+          "Невозможно запустить захват экрана без выбранного источника",
+        screenRevoked: "Демонстрация экрана отозвана или остановлена вне приложения",
+        transportFailed: (sourceLabel, message) =>
+          `Сбой передачи (${sourceLabel}): ${message}`,
+        transportFailedShort: (sourceLabel) =>
+          `Сбой передачи (${sourceLabel})`,
+        mediaSessionRequired: (action) =>
+          `Сначала подключите live-сессию перед ${action}.`
+      }
+    },
+    sessionControls: {
+      statuses: {
+        idle: "ожидание",
+        connecting: "подключение",
+        connected: "подключено",
+        reconnecting: "переподключение",
+        disconnecting: "отключение",
+        disconnected: "отключено",
+        error: "ошибка"
+      },
+      statusCopy: {
+        connecting: "Пытаемся открыть live-сессию.",
+        connected: "Live-сессия подключена.",
+        disconnecting: "Закрываем live-сессию.",
+        reconnecting: "Соединение потеряно. Автоматическая повторная попытка.",
+        disconnected: "Сессия закрыта.",
+        idle: "Готово к подключению.",
+        defaultError: "Последнее действие сессии завершилось ошибкой."
+      },
+      connect: "Подключить",
+      pause: "Пауза",
+      disconnect: "Отключить",
+      connecting: "Подключение...",
+      pausing: "Пауза...",
+      disconnecting: "Отключение...",
+      mic: "Мик",
+      cam: "Кам",
+      screen: "Экран",
+      stopPlayback: "Остановить воспроизведение"
+    },
+    proactiveMode: {
+      title: "Проактивный режим",
+      modes: {
+        off: "выкл",
+        pure: "чистый",
+        assisted: "с поддержкой"
+      },
+      requestedApi: "Запрошенный API",
+      runtimeApi: "Фактический API",
+      notConnectedYet: "ещё не подключено",
+      errorPrefix: "Ошибка:"
+    },
+    deviceSelectors: {
+      title: "Устройства",
+      microphone: "Микрофон",
+      output: "Вывод",
+      camera: "Камера",
+      screenSource: "Источник экрана",
+      selectSource: "Выберите источник",
+      displayKind: {
+        screen: "экран",
+        window: "окно"
+      }
+    },
+    preview: {
+      screen: "Предпросмотр экрана",
+      camera: "Предпросмотр камеры"
+    },
+    transcript: {
+      title: "Транскрипт",
+      speaker: {
+        user: "Пользователь",
+        model: "Модель",
+        system: "Система"
+      },
+      status: {
+        partial: "черновик",
+        final: "финал"
+      }
+    },
+    diagnostics: {
+      title: "Диагностика",
+      exportLogs: "Экспорт логов",
+      summary: "Сводка",
+      latestStatus: "Последний статус",
+      effectiveSessionSnapshot: "Эффективный снимок сессии",
+      eventTimeline: "Лента событий",
+      noDiagnosticsYet: "Диагностика пока отсутствует",
+      noEffectiveConfigYet:
+        "Ни одна попытка подключения ещё не сформировала эффективную конфигурацию.",
+      summaryKeys: {
+        totalEvents: "всегоСобытий",
+        errorCount: "ошибок",
+        warnCount: "предупреждений",
+        latestEvent: "последнееСобытие",
+        category: "категория",
+        level: "уровень",
+        message: "сообщение",
+        timestamp: "время",
+        details: "детали"
+      }
+    },
+    settings: {
+      title: "Настройки",
+      lockBanner:
+        "Параметры подключения заблокированы во время активной сессии и после паузы с сохранённым продолжением. Чтобы применить новые параметры подключения, используйте Отключить. Realtime-настройки остаются доступны.",
+      sections: {
+        api: "API",
+        audio: "Аудио",
+        visual: "Видео",
+        behavior: "Поведение",
+        diagnostics: "Диагностика"
+      },
+      fields: {
+        savedKey: "Сохранённый ключ",
+        noKeySaved: "Ключ не сохранён",
+        deleteKey: "Удалить",
+        newKey: "Новый ключ",
+        pasteApiKey: "Вставьте Gemini API key",
+        saveKey: "Сохранить ключ",
+        model: "Модель",
+        apiVersionAuto: "Версия API (авто)",
+        apiVersionHelp:
+          "Автоправило: используется v1alpha, если проактивный режим не выключен или включён аффективный диалог.",
+        voice: "Голос",
+        thinkingBudget: "Бюджет размышления",
+        modelVolume: "Громкость модели",
+        autoActivityDetection: "Автоопределение активности",
+        manualVadMode: "Ручной режим VAD",
+        detectionSensitivity: "Чувствительность детекции",
+        silenceDurationMs: "Длительность тишины (мс)",
+        prefixPaddingMs: "Префиксный буфер (мс)",
+        mediaResolution: "Разрешение медиа",
+        frameIntervalMs: "Интервал кадров (мс)",
+        jpegQuality: "Качество JPEG",
+        changeThreshold: "Порог изменений",
+        previewEnabled: "Включить предпросмотр",
+        proactiveMode: "Проактивный режим",
+        affectiveDialog: "Аффективный диалог",
+        systemPrompt: "Системный промпт",
+        proactivePolicy: "Политика проактивных комментариев",
+        maxAutonomousFrequencyMs: "Макс. частота автономных комментариев (мс)",
+        commentaryDuringSilenceOnly: "Комментарии только во время тишины",
+        commentaryWhileIdleOnly: "Комментарии только при неактивности пользователя",
+        verboseLogging: "Подробное логирование",
+        exportPathHint: "Подсказка пути экспорта"
+      },
+      options: {
+        mediaResolution: {
+          low: "Низкое",
+          medium: "Среднее",
+          high: "Высокое"
+        },
+        proactiveMode: {
+          off: "Выкл",
+          pure: "Чистый",
+          assisted: "С поддержкой"
+        }
+      },
+      saveSettings: "Сохранить настройки"
+    }
+  }
+};
