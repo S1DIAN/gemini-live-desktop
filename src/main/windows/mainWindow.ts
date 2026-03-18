@@ -3,11 +3,12 @@ import { app, BrowserWindow } from "electron";
 
 export function createMainWindow(): BrowserWindow {
   const window = new BrowserWindow({
-    width: 1480,
-    height: 960,
-    minWidth: 1200,
-    minHeight: 760,
-    backgroundColor: "#0b1020",
+    width: 1240,
+    height: 820,
+    minWidth: 980,
+    minHeight: 700,
+    backgroundColor: "#101722",
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(app.getAppPath(), "dist", "preload", "index.js"),
       contextIsolation: true,
@@ -23,6 +24,8 @@ export function createMainWindow(): BrowserWindow {
   } else {
     void window.loadFile(path.join(app.getAppPath(), "dist", "renderer", "index.html"));
   }
+
+  window.setMenuBarVisibility(false);
 
   return window;
 }

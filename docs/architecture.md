@@ -9,7 +9,7 @@ The app is split into five runtime layers:
 2. `preload`
    Exposes narrow bridges to the renderer for settings, live session control, media transport and diagnostics. It does not expose raw Electron or Node APIs.
 3. `renderer`
-   Renders the `CallPage`, `SettingsPage` and `DiagnosticsPage`, manages Zustand stores, owns browser media capture, previews, JPEG encoding, frame diffing, local audio playback, proactive hint orchestration, proactivity metrics aggregation, and localized UI dictionaries with runtime language selection.
+   Renders the `CallPage`, `SettingsPage` and `DiagnosticsPage`, manages Zustand stores, owns browser media capture, dock-anchored previews, JPEG encoding, frame diffing, local audio playback, proactive hint orchestration, proactivity metrics aggregation, chat-style transcript presentation, and localized UI dictionaries with runtime language selection.
 4. `worker`
    Owns the Gemini Live session, reconnect logic, session resumption, capability normalization, bootstrap generation, ordered client content and event mapping.
 5. `shared`
@@ -41,6 +41,7 @@ The app is split into five runtime layers:
 - Connect-time setup controls in the renderer are locked during active live session states (`connecting`, `connected`, `reconnecting`, `disconnecting`) and while paused session continuation is retained; realtime renderer tuning remains editable.
 - Renderer language switching controls a connect-time speech-language override (`speechConfig.languageCode`) for the next connect; it must not force reconnect during an active session.
 - Selected renderer locale is stored in browser localStorage and applied immediately across all routes; it is only turned into a speech-language override on the next connect.
+- Model transcript events emitted to the renderer chat must be turn-final only (`generationComplete`/`turnComplete`) to prevent chunked model bubbles.
 
 ## Runtime Data Flow
 
@@ -80,6 +81,7 @@ The app is split into five runtime layers:
 - The renderer captures screen and camera locally, downsizes frames, encodes them to JPEG, and sends binary frame payloads through a message channel with `latest-frame-wins`; the worker forwards those frames via `sendRealtimeInput.video`.
 - In assisted proactive mode, screen-diff evaluation and hidden hint decisions are applied only after the corresponding frame send attempt completes, keeping proactive commentary aligned to the latest delivered frame.
 - Worker forwards renderer proactive hidden hints via `sendRealtimeInput.text` so proactive trigger text follows the realtime media path.
+- Worker buffers model transcription chunks and emits a single final model chat message only after turn completion.
 - When microphone capture is paused or session teardown starts, the renderer emits a pause telemetry event and the worker sends `sendRealtimeInput({ audioStreamEnd: true })` to flush pending audio on the Live API side.
 - If renderer media message ports detach, the renderer requests new media transport ports and retries one delivery before surfacing a transport error and stopping the affected media control.
 - Renderer microphone capture listens for unexpected track-end and reports an explicit media failure path instead of leaving mic UI state stale.
@@ -143,6 +145,7 @@ The worker does not own UI state or browser media capture.
 
 - `LiveSessionManager` owns session lifecycle and adapter binding.
 - `LiveSessionManager` also owns per-turn latency context correlation between renderer telemetry, local implicit turn finalization, server ack/detection, model callbacks and playback completion, plus response start-type classification (`reactive_user_turn`, `autonomous_proactive`, `unknown`) and proactive trigger-to-model-start latency emission.
+- `SessionControls` owns the fixed call dock, including the compact live camera/screen preview tiles shown when local capture is enabled.
 - `ReconnectManager` owns retry timing and resume or fresh-session fallback.
 - `CapabilityNormalizer` owns effective config derivation and hard gating.
 - `BootstrapBuilder` owns startup and system-instruction composition.
@@ -160,6 +163,7 @@ The worker does not own UI state or browser media capture.
 - `src/preload/bridges/*.ts` expose the minimal renderer bridge surface.
 - `src/renderer/app/routes.tsx` owns top-level navigation and locale switching.
 - `src/renderer/pages/*` compose page-level UI only.
+- `src/renderer/components/TranscriptPanel.tsx` renders the chat-style transcript feed, and `src/renderer/components/SessionControls.tsx` owns the bottom dock plus compact preview tiles.
 - `src/renderer/services/audio/*` owns local capture and playback control.
 - `src/renderer/services/media/*` owns screen and camera capture plus frame encoding.
 - `src/renderer/services/live/*` owns renderer-side live orchestration and proactivity tracking.

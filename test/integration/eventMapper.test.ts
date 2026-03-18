@@ -3,7 +3,7 @@ import { mapLiveServerMessage } from "../../src/worker/live/eventMapper";
 import type { LiveServerMessage } from "@google/genai";
 
 describe("mapLiveServerMessage", () => {
-  it("emits diagnostics, transcript and playback clear events", () => {
+  it("prefers transcription text over duplicate model turn text", () => {
     const events = mapLiveServerMessage({
       goAway: { timeLeft: "5s" },
       sessionResumptionUpdate: { newHandle: "h1", resumable: true },
@@ -19,7 +19,7 @@ describe("mapLiveServerMessage", () => {
     } as LiveServerMessage);
 
     expect(events.some((event) => event.type === "playback-clear")).toBe(true);
-    expect(events.some((event) => event.type === "transcript")).toBe(true);
+    expect(events.filter((event) => event.type === "transcript")).toHaveLength(2);
     expect(events.some((event) => event.type === "diagnostics")).toBe(true);
   });
 });

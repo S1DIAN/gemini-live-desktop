@@ -296,6 +296,8 @@ export class LiveSessionManager {
   private activeModelTurnId: string | null = null;
   private pendingProactiveTriggers: number[] = [];
   private autonomousResponseActive = false;
+  private modelTranscriptBuffers = new Map<string, string>();
+  private autonomousModelTranscriptBuffer = "";
   private responseStartTypeCounts: Record<
     "reactive_user_turn" | "autonomous_proactive" | "unknown",
     number
@@ -321,6 +323,8 @@ export class LiveSessionManager {
     this.activeModelTurnId = null;
     this.pendingProactiveTriggers = [];
     this.autonomousResponseActive = false;
+    this.modelTranscriptBuffers.clear();
+    this.autonomousModelTranscriptBuffer = "";
     this.responseStartTypeCounts = {
       reactive_user_turn: 0,
       autonomous_proactive: 0,
@@ -360,6 +364,8 @@ export class LiveSessionManager {
     this.activeModelTurnId = null;
     this.pendingProactiveTriggers = [];
     this.autonomousResponseActive = false;
+    this.modelTranscriptBuffers.clear();
+    this.autonomousModelTranscriptBuffer = "";
     this.clearUserSpeechActivity();
     this.emitState("disconnecting");
     this.adapter?.signalAudioStreamEnd();
@@ -602,6 +608,17 @@ export class LiveSessionManager {
           ? "multimodal"
           : "audio"
         : "text";
+      const modelTextChunk = extractModelTextChunk(serverContent);
+      if (modelTextChunk) {
+        if (responseTurnId) {
+          this.appendModelTranscriptChunk(responseTurnId, modelTextChunk);
+        } else {
+          this.autonomousModelTranscriptBuffer = mergeTranscriptChunk(
+            this.autonomousModelTranscriptBuffer,
+            modelTextChunk
+          );
+        }
+      }
 
       if (responseTurnId) {
         const turn = this.ensureTurnContext(responseTurnId);
@@ -699,6 +716,7 @@ export class LiveSessionManager {
       }
 
       if ((serverContent?.generationComplete || serverContent?.turnComplete) && responseTurnId) {
+        this.flushTurnModelTranscript(responseTurnId, receivedAt);
         const turn = this.ensureTurnContext(responseTurnId);
         if (!turn.modelResponseCompletedAt) {
           turn.modelResponseCompletedAt = receivedAt;
@@ -726,6 +744,7 @@ export class LiveSessionManager {
         (serverContent?.generationComplete || serverContent?.turnComplete) &&
         !responseTurnId
       ) {
+        this.flushAutonomousModelTranscript(receivedAt);
         this.autonomousResponseActive = false;
       }
 
@@ -783,6 +802,8 @@ export class LiveSessionManager {
         this.activeModelTurnId = null;
         this.pendingProactiveTriggers = [];
         this.autonomousResponseActive = false;
+        this.modelTranscriptBuffers.clear();
+        this.autonomousModelTranscriptBuffer = "";
         return;
       }
 
@@ -1137,6 +1158,49 @@ export class LiveSessionManager {
     this.modelSpeaking = false;
     this.pendingProactiveTriggers = [];
     this.autonomousResponseActive = false;
+    this.modelTranscriptBuffers.clear();
+    this.autonomousModelTranscriptBuffer = "";
+  }
+
+  private appendModelTranscriptChunk(turnId: string, chunk: string): void {
+    const previous = this.modelTranscriptBuffers.get(turnId) ?? "";
+    this.modelTranscriptBuffers.set(turnId, mergeTranscriptChunk(previous, chunk));
+  }
+
+  private flushTurnModelTranscript(turnId: string, timestamp: number): void {
+    const text = (this.modelTranscriptBuffers.get(turnId) ?? "").trim();
+    if (!text) {
+      return;
+    }
+    this.modelTranscriptBuffers.delete(turnId);
+    this.emit({
+      type: "transcript",
+      payload: {
+        id: crypto.randomUUID(),
+        speaker: "model",
+        text,
+        status: "final",
+        createdAt: timestamp
+      }
+    });
+  }
+
+  private flushAutonomousModelTranscript(timestamp: number): void {
+    const text = this.autonomousModelTranscriptBuffer.trim();
+    if (!text) {
+      return;
+    }
+    this.autonomousModelTranscriptBuffer = "";
+    this.emit({
+      type: "transcript",
+      payload: {
+        id: crypto.randomUUID(),
+        speaker: "model",
+        text,
+        status: "final",
+        createdAt: timestamp
+      }
+    });
   }
 
   private emitResponseStartTypeCount(
@@ -1199,6 +1263,59 @@ function toStartSensitivity(value: number): StartSensitivity {
   return value >= 0.5
     ? StartSensitivity.START_SENSITIVITY_HIGH
     : StartSensitivity.START_SENSITIVITY_LOW;
+}
+
+function extractModelTextChunk(
+  serverContent: LiveServerMessage["serverContent"] | undefined
+): string {
+  if (!serverContent) {
+    return "";
+  }
+  const outputText = serverContent.outputTranscription?.text?.trim() ?? "";
+  if (outputText) {
+    return outputText;
+  }
+  return (
+    serverContent.modelTurn?.parts
+      ?.map((part) => part.text?.trim() ?? "")
+      .filter(Boolean)
+      .join(" ")
+      .trim() ?? ""
+  );
+}
+
+function mergeTranscriptChunk(previous: string, next: string): string {
+  const previousTrimmed = previous.trim();
+  const nextTrimmed = next.trim();
+  if (!previousTrimmed) {
+    return nextTrimmed;
+  }
+  if (!nextTrimmed) {
+    return previousTrimmed;
+  }
+  if (nextTrimmed.startsWith(previousTrimmed)) {
+    return nextTrimmed;
+  }
+  if (previousTrimmed.startsWith(nextTrimmed)) {
+    return previousTrimmed;
+  }
+  const overlapLength = findOverlapLength(previousTrimmed, nextTrimmed);
+  if (overlapLength > 0) {
+    return previousTrimmed + nextTrimmed.slice(overlapLength);
+  }
+  const needsSpace = !/[\s([{"'-]$/u.test(previousTrimmed) &&
+    !/^[\s.,!?;:)\]}%"']/u.test(nextTrimmed);
+  return `${previousTrimmed}${needsSpace ? " " : ""}${nextTrimmed}`;
+}
+
+function findOverlapLength(previous: string, next: string): number {
+  const maxLength = Math.min(previous.length, next.length);
+  for (let length = maxLength; length > 0; length -= 1) {
+    if (previous.slice(-length) === next.slice(0, length)) {
+      return length;
+    }
+  }
+  return 0;
 }
 
 function toLatency(start?: number, end?: number): number | null {

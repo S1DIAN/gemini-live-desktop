@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SessionControls } from "@renderer/components/SessionControls";
 import { TranscriptPanel } from "@renderer/components/TranscriptPanel";
-import { ScreenPreview } from "@renderer/components/ScreenPreview";
-import { CameraPreview } from "@renderer/components/CameraPreview";
-import { DeviceSelectors } from "@renderer/components/DeviceSelectors";
 import { ProactiveModeSwitch } from "@renderer/components/ProactiveModeSwitch";
 import { useSessionStore } from "@renderer/state/sessionStore";
 import {
@@ -21,6 +18,10 @@ import { proactivityMetricsTracker } from "@renderer/services/live/proactivityMe
 import { liveClientAdapter } from "@renderer/services/live/liveClientAdapter";
 import { useI18n } from "@renderer/i18n/useI18n";
 import type { VoiceTurnTelemetryEvent } from "@shared/types/live";
+import { PageHeader } from "@renderer/components/layout/PageHeader";
+import { SectionCard } from "@renderer/components/layout/SectionCard";
+import type { DisplaySourceDescriptor } from "@shared/types/ipc";
+import { SparkIcon } from "@renderer/components/ui/Icons";
 
 const audioController = new AudioInputController();
 const screenController = new ScreenCaptureController();
@@ -35,6 +36,11 @@ interface LocalVoiceTurnState {
   audioChunksSent: number;
 }
 
+interface QuickDevicesState {
+  cameras: MediaDeviceInfo[];
+  displays: DisplaySourceDescriptor[];
+}
+
 export function CallPage() {
   const session = useSessionStore();
   const settingsStore = useSettingsStore();
@@ -44,6 +50,10 @@ export function CallPage() {
   const screenPreviewRef = useRef<HTMLVideoElement>(null);
   const cameraPreviewRef = useRef<HTMLVideoElement>(null);
   const [text, setText] = useState("");
+  const [quickDevices, setQuickDevices] = useState<QuickDevicesState>({
+    cameras: [],
+    displays: []
+  });
   const [actionMessage, setActionMessage] = useState<{
     tone: "info" | "success" | "error";
     text: string;
@@ -67,6 +77,27 @@ export function CallPage() {
   useEffect(() => {
     void liveClientAdapter.setVolume(settingsStore.settings.audio.modelVolume);
   }, [settingsStore.settings.audio.modelVolume]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const [mediaDevices, displays] = await Promise.all([
+        navigator.mediaDevices.enumerateDevices(),
+        window.appApi.media.listDisplaySources()
+      ]);
+      if (cancelled) {
+        return;
+      }
+      setQuickDevices({
+        cameras: mediaDevices.filter((item) => item.kind === "videoinput"),
+        displays
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function stopAllLocalMedia(): Promise<void> {
     abortActiveVoiceTurn(
@@ -387,10 +418,6 @@ export function CallPage() {
       emitMicStreamPaused("microphone_stopped");
       await audioController.stop();
       session.setMicEnabled(false);
-      setActionMessage({
-        tone: "info",
-        text: copy.callPage.messages.microphoneDisabled
-      });
       return;
     }
 
@@ -530,20 +557,12 @@ export function CallPage() {
     });
     audioController.setMuted(settingsStore.settings.audio.microphoneMuted);
     session.setMicEnabled(true);
-    setActionMessage({
-      tone: "success",
-      text: copy.callPage.messages.microphoneEnabled
-    });
   }
 
   async function onToggleScreen() {
     if (session.screenEnabled) {
       await screenController.stop();
       session.setScreenEnabled(false);
-      setActionMessage({
-        tone: "info",
-        text: copy.callPage.messages.screenStopped
-      });
       return;
     }
 
@@ -683,20 +702,12 @@ export function CallPage() {
       }
     });
     session.setScreenEnabled(true);
-    setActionMessage({
-      tone: "success",
-      text: copy.callPage.messages.screenStarted
-    });
   }
 
   async function onToggleCamera() {
     if (session.cameraEnabled) {
       await cameraController.stop();
       session.setCameraEnabled(false);
-      setActionMessage({
-        tone: "info",
-        text: copy.callPage.messages.cameraStopped
-      });
       return;
     }
 
@@ -719,10 +730,22 @@ export function CallPage() {
       }
     });
     session.setCameraEnabled(true);
-    setActionMessage({
-      tone: "success",
-      text: copy.callPage.messages.cameraStarted
+  }
+
+  async function onStartCameraWithSource(sourceId: string) {
+    settingsStore.update((draft) => {
+      draft.visual.cameraDeviceId = sourceId;
+      return draft;
     });
+    await onToggleCamera();
+  }
+
+  async function onStartScreenWithSource(sourceId: string) {
+    settingsStore.update((draft) => {
+      draft.visual.screenSourceId = sourceId;
+      return draft;
+    });
+    await onToggleScreen();
   }
 
   async function onSendText() {
@@ -782,14 +805,64 @@ export function CallPage() {
 
   return (
     <section className="page call-page">
-      <div className="hero">
-        <div>
-          <h1>{copy.callPage.heroTitle}</h1>
-          <p>{copy.callPage.heroSubtitle}</p>
+      <PageHeader title={copy.callPage.pageTitle} meta={copy.callPage.pageMeta} />
+
+      {actionMessage?.tone === "error" ? (
+        <div className={`feedback-banner feedback-${actionMessage.tone}`}>
+          {actionMessage.text}
         </div>
-        <div className="meter-card">
-          <span>{copy.callPage.micLevel}</span>
-          <strong>{session.micLevel.toFixed(3)}</strong>
+      ) : null}
+
+      <div className="call-workspace">
+        <div className="call-main-column">
+          <TranscriptPanel
+            entries={transcriptEntries}
+            composer={
+              <>
+                <textarea
+                  value={text}
+                  onChange={(event) => setText(event.target.value)}
+                  placeholder={copy.callPage.manualTextPlaceholder}
+                  disabled={connectionBusy}
+                />
+                <div className="composer-actions">
+                  <button
+                    className="button-secondary"
+                    onClick={() => useTranscriptStore.getState().clear()}
+                  >
+                    {copy.callPage.clearTranscript}
+                  </button>
+                  <button className="button-primary" onClick={() => void onSendText()}>
+                    {copy.callPage.sendText}
+                  </button>
+                </div>
+              </>
+            }
+          />
+        </div>
+
+        <div className="call-side-column">
+          <SectionCard
+            title={copy.callPage.assistantModeTitle}
+            description={copy.callPage.assistantModeDescription}
+          >
+            <div className="call-mode-card">
+              <SparkIcon />
+              <ProactiveModeSwitch
+                value={settingsStore.settings.api.proactiveMode}
+                requestedApiVersion={settingsStore.settings.api.apiVersion}
+                runtimeApiVersion={runtimeApiVersion}
+                errorText={apiVersionError}
+                compact
+                onChange={(value) =>
+                  settingsStore.update((draft) => {
+                    draft.api.proactiveMode = value;
+                    return draft;
+                  })
+                }
+              />
+            </div>
+          </SectionCard>
         </div>
       </div>
 
@@ -801,90 +874,27 @@ export function CallPage() {
         cameraEnabled={session.cameraEnabled}
         screenEnabled={session.screenEnabled}
         mediaControlsEnabled={mediaControlsEnabled}
+        previewEnabled={settingsStore.settings.visual.previewEnabled}
+        cameraSources={quickDevices.cameras.map((device) => ({
+          id: device.deviceId,
+          label: device.label || device.deviceId
+        }))}
+        screenSources={quickDevices.displays.map((display) => ({
+          id: display.id,
+          label: `${copy.deviceSelectors.displayKind[display.kind]}: ${display.name}`
+        }))}
+        screenPreviewRef={screenPreviewRef}
+        cameraPreviewRef={cameraPreviewRef}
         onConnect={onConnect}
         onPause={onPause}
         onDisconnect={onTerminate}
         onToggleMic={onToggleMic}
-        onToggleCamera={onToggleCamera}
-        onToggleScreen={onToggleScreen}
-        onStopPlayback={() => liveClientAdapter.clearPlayback()}
+        onStopCamera={onToggleCamera}
+        onStopScreen={onToggleScreen}
+        onStartCameraWithSource={onStartCameraWithSource}
+        onStartScreenWithSource={onStartScreenWithSource}
         onError={reportControlError}
       />
-
-      {actionMessage ? (
-        <div className={`feedback-banner feedback-${actionMessage.tone}`}>
-          {actionMessage.text}
-        </div>
-      ) : null}
-
-      <div className="grid-two">
-        <DeviceSelectors
-          inputDeviceId={settingsStore.settings.audio.inputDeviceId}
-          outputDeviceId={settingsStore.settings.audio.outputDeviceId}
-          cameraDeviceId={settingsStore.settings.visual.cameraDeviceId}
-          screenSourceId={settingsStore.settings.visual.screenSourceId}
-          onInputChange={(value) =>
-            settingsStore.update((draft) => {
-              draft.audio.inputDeviceId = value;
-              return draft;
-            })
-          }
-          onOutputChange={(value) =>
-            settingsStore.update((draft) => {
-              draft.audio.outputDeviceId = value;
-              void liveClientAdapter.setOutputDevice(value);
-              return draft;
-            })
-          }
-          onCameraChange={(value) =>
-            settingsStore.update((draft) => {
-              draft.visual.cameraDeviceId = value;
-              return draft;
-            })
-          }
-          onScreenChange={(value) =>
-            settingsStore.update((draft) => {
-              draft.visual.screenSourceId = value;
-              return draft;
-            })
-          }
-        />
-        <ProactiveModeSwitch
-          value={settingsStore.settings.api.proactiveMode}
-          requestedApiVersion={settingsStore.settings.api.apiVersion}
-          runtimeApiVersion={runtimeApiVersion}
-          errorText={apiVersionError}
-          onChange={(value) =>
-            settingsStore.update((draft) => {
-              draft.api.proactiveMode = value;
-              return draft;
-            })
-          }
-        />
-      </div>
-
-      <div className="grid-two">
-        <ScreenPreview ref={screenPreviewRef} />
-        <CameraPreview ref={cameraPreviewRef} />
-      </div>
-
-      <div className="panel composer">
-        <div className="panel-title">{copy.callPage.manualTextTitle}</div>
-        <textarea
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          placeholder={copy.callPage.manualTextPlaceholder}
-          disabled={connectionBusy}
-        />
-        <div className="composer-actions">
-          <button onClick={() => useTranscriptStore.getState().clear()}>
-            {copy.callPage.clearTranscript}
-          </button>
-          <button onClick={() => void onSendText()}>{copy.callPage.sendText}</button>
-        </div>
-      </div>
-
-      <TranscriptPanel entries={transcriptEntries} />
     </section>
   );
 }

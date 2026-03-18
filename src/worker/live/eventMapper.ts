@@ -60,17 +60,6 @@ export function mapLiveServerMessage(
     });
   }
 
-  if (serverContent.outputTranscription?.text) {
-    events.push({
-      type: "transcript",
-      payload: transcript(
-        "model",
-        serverContent.outputTranscription.text,
-        serverContent.outputTranscription.finished ?? false
-      )
-    });
-  }
-
   const audioParts = (serverContent.modelTurn?.parts ?? []).filter(
     (part): part is Part & { inlineData: NonNullable<Part["inlineData"]> } =>
       Boolean(part.inlineData?.data)
@@ -85,17 +74,6 @@ export function mapLiveServerMessage(
         data: bytes,
         turnId
       }
-    });
-  }
-
-  const modelText = serverContent.modelTurn?.parts
-    ?.map((part) => part.text ?? "")
-    .join("")
-    .trim();
-  if (modelText) {
-    events.push({
-      type: "transcript",
-      payload: transcript("model", modelText, serverContent.turnComplete ?? false)
     });
   }
 

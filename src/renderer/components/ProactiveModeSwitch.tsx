@@ -1,5 +1,6 @@
 import type { ApiVersion, ProactiveMode } from "@shared/types/settings";
 import { useI18n } from "@renderer/i18n/useI18n";
+import { SectionCard } from "@renderer/components/layout/SectionCard";
 
 export function ProactiveModeSwitch({
   value,
@@ -7,7 +8,8 @@ export function ProactiveModeSwitch({
   disabled = false,
   requestedApiVersion,
   runtimeApiVersion,
-  errorText
+  errorText,
+  compact = false
 }: {
   value: ProactiveMode;
   onChange: (value: ProactiveMode) => void;
@@ -15,16 +17,17 @@ export function ProactiveModeSwitch({
   requestedApiVersion: ApiVersion;
   runtimeApiVersion: ApiVersion | null;
   errorText?: string;
+  compact?: boolean;
 }) {
   const { copy } = useI18n();
 
-  return (
-    <div className="panel proactive-switch">
-      <div className="panel-title">{copy.proactiveMode.title}</div>
-      <div className="segmented">
+  const content = (
+    <>
+      <div className="segmented-control">
         {(["off", "pure", "assisted"] as ProactiveMode[]).map((mode) => (
           <button
             key={mode}
+            type="button"
             className={mode === value ? "active" : ""}
             disabled={disabled}
             onClick={() => onChange(mode)}
@@ -48,6 +51,12 @@ export function ProactiveModeSwitch({
           </div>
         ) : null}
       </div>
-    </div>
+    </>
   );
+
+  if (compact) {
+    return <div className="proactive-switch-compact">{content}</div>;
+  }
+
+  return <SectionCard title={copy.proactiveMode.title}>{content}</SectionCard>;
 }

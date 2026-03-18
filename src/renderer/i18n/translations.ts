@@ -27,6 +27,10 @@ export interface TranslationDictionary {
   callPage: {
     heroTitle: string;
     heroSubtitle: string;
+    pageTitle: string;
+    pageMeta: string;
+    assistantModeTitle: string;
+    assistantModeDescription: string;
     micLevel: string;
     manualTextTitle: string;
     manualTextPlaceholder: string;
@@ -118,6 +122,7 @@ export interface TranslationDictionary {
   };
   transcript: {
     title: string;
+    empty: string;
     speaker: Record<TranscriptSpeaker, string>;
     status: Record<TranscriptStatus, string>;
   };
@@ -221,6 +226,10 @@ export const translations: Record<Locale, TranslationDictionary> = {
       heroTitle: "Gemini Live Desktop",
       heroSubtitle:
         "Voice, screen and camera routed through an isolated live worker with capability gating and diagnostics.",
+      pageTitle: "Live Session",
+      pageMeta: "Call",
+      assistantModeTitle: "Assistant Mode",
+      assistantModeDescription: "Live mode tuning stays visible on the call screen.",
       micLevel: "Mic level",
       manualTextTitle: "Manual Text",
       manualTextPlaceholder: "Send ordered client content",
@@ -333,6 +342,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
     transcript: {
       title: "Transcript",
+      empty: "No transcript events yet.",
       speaker: {
         user: "User",
         model: "Model",
@@ -448,6 +458,10 @@ export const translations: Record<Locale, TranslationDictionary> = {
       heroTitle: "Gemini Live Desktop",
       heroSubtitle:
         "Голос, экран и камера передаются через изолированный live-воркер с проверкой возможностей и диагностикой.",
+      pageTitle: "Лайв-сессия",
+      pageMeta: "Звонок",
+      assistantModeTitle: "Режим ассистента",
+      assistantModeDescription: "Настройки live-режима доступны прямо на экране звонка.",
       micLevel: "Уровень микрофона",
       manualTextTitle: "Ручной текст",
       manualTextPlaceholder: "Отправить упорядоченный клиентский контент",
@@ -560,6 +574,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
     transcript: {
       title: "Транскрипт",
+      empty: "Транскрипция пока пуста.",
       speaker: {
         user: "Пользователь",
         model: "Модель",
