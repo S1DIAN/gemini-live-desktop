@@ -3,6 +3,10 @@ import { LIVE_SPEECH_LANGUAGE_CODES } from "../constants/liveSpeech";
 import {
   applyAutoApiVersion,
   defaultSettings,
+  THINKING_BUDGET_MAX,
+  THINKING_BUDGET_MIN,
+  THINKING_BUDGET_OFF,
+  THINKING_BUDGET_AUTO,
   SETTINGS_VERSION,
   type AppSettings
 } from "../types/settings";
@@ -18,7 +22,18 @@ export const settingsSchema = z.object({
     outputTranscriptionEnabled: z.boolean(),
     enableAffectiveDialog: z.boolean(),
     proactiveMode: z.enum(["off", "pure", "assisted"]),
-    thinkingBudget: z.number().min(-1).max(8192)
+    thinkingMode: z.enum(["off", "auto", "custom"]),
+    thinkingBudget: z.number().min(THINKING_BUDGET_AUTO).max(THINKING_BUDGET_MAX),
+    thinkingIncludeThoughts: z.boolean(),
+    thinkingLevel: z.enum(["model_default", "minimal", "low", "medium", "high"])
+  }).superRefine((api, ctx) => {
+    if (api.thinkingMode === "custom" && api.thinkingBudget < THINKING_BUDGET_MIN) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `thinkingBudget must be >= ${THINKING_BUDGET_MIN} in custom mode`,
+        path: ["thinkingBudget"]
+      });
+    }
   }),
   audio: z.object({
     inputDeviceId: z.string(),
@@ -71,6 +86,24 @@ function migrateLegacyProactiveTuning(settings: AppSettings): AppSettings {
   }
   if (next.behavior.maxAutonomousCommentFrequencyMs === 12000) {
     next.behavior.maxAutonomousCommentFrequencyMs = 6000;
+  }
+
+  if (next.api.thinkingMode === "off") {
+    if (next.api.thinkingBudget === THINKING_BUDGET_AUTO) {
+      next.api.thinkingMode = "auto";
+    } else if (next.api.thinkingBudget >= THINKING_BUDGET_MIN) {
+      next.api.thinkingMode = "custom";
+    }
+  }
+
+  if (next.api.thinkingMode === "custom") {
+    if (next.api.thinkingBudget < THINKING_BUDGET_MIN) {
+      next.api.thinkingBudget = THINKING_BUDGET_MIN;
+    }
+  } else if (next.api.thinkingMode === "off") {
+    next.api.thinkingBudget = THINKING_BUDGET_OFF;
+  } else {
+    next.api.thinkingBudget = THINKING_BUDGET_AUTO;
   }
 
   return next;

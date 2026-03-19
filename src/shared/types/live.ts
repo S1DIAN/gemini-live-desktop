@@ -1,4 +1,10 @@
-import type { ApiVersion, ProactiveMode, SpeechLanguageCode } from "./settings";
+import type {
+  ApiVersion,
+  ProactiveMode,
+  SpeechLanguageCode,
+  ThinkingLevelPreset,
+  ThinkingMode
+} from "./settings";
 import type { DiagnosticsEvent } from "./diagnostics";
 import type { TranscriptEntry } from "./transcript";
 
@@ -35,7 +41,10 @@ export interface EffectiveSessionSnapshot {
   voiceName: string;
   speechLanguageCode?: SpeechLanguageCode;
   proactiveMode: ProactiveMode;
+  thinkingMode: ThinkingMode;
   thinkingBudget: number;
+  thinkingIncludeThoughts: boolean;
+  thinkingLevel: ThinkingLevelPreset;
   mediaResolution: "low" | "medium" | "high";
   proactiveAudioEnabled: boolean;
   affectiveDialogEnabled: boolean;
@@ -77,7 +86,10 @@ export interface WorkerConnectRequest {
     voiceName: string;
     speechLanguageCode: SpeechLanguageCode;
     proactiveMode: ProactiveMode;
+    thinkingMode: ThinkingMode;
     thinkingBudget: number;
+    thinkingIncludeThoughts: boolean;
+    thinkingLevel: ThinkingLevelPreset;
     mediaResolution: "low" | "medium" | "high";
     enableAffectiveDialog: boolean;
     inputTranscriptionEnabled: boolean;

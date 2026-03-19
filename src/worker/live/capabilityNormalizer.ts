@@ -97,7 +97,10 @@ export function normalizeConnectRequest(
     voiceName: requested.voiceName,
     speechLanguageCode: explicitSpeechLanguageCode,
     proactiveMode: requested.proactiveMode,
+    thinkingMode: requested.thinkingMode,
     thinkingBudget: requested.thinkingBudget,
+    thinkingIncludeThoughts: requested.thinkingIncludeThoughts,
+    thinkingLevel: requested.thinkingLevel,
     mediaResolution: requested.mediaResolution,
     proactiveAudioEnabled,
     affectiveDialogEnabled,
@@ -132,7 +135,23 @@ export function normalizeConnectRequest(
     {
       field: "thinkingConfig.thinkingBudget",
       action: "kept",
-      reason: `thinking budget set to ${requested.thinkingBudget}`
+      reason: `thinking mode=${requested.thinkingMode}, budget=${requested.thinkingBudget}`
+    },
+    {
+      field: "thinkingConfig.includeThoughts",
+      action: requested.thinkingIncludeThoughts ? "kept" : "disabled",
+      reason: requested.thinkingIncludeThoughts
+        ? "thought summaries enabled"
+        : "thought summaries disabled"
+    },
+    {
+      field: "thinkingConfig.thinkingLevel",
+      action:
+        requested.thinkingLevel === "model_default" ? "disabled" : "kept",
+      reason:
+        requested.thinkingLevel === "model_default"
+          ? "model default thinking level is used"
+          : `thinking level set to ${requested.thinkingLevel}`
     },
     {
       field: "mediaResolution",

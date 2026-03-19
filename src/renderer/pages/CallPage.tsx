@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SessionControls } from "@renderer/components/SessionControls";
 import { TranscriptPanel } from "@renderer/components/TranscriptPanel";
-import { ProactiveModeSwitch } from "@renderer/components/ProactiveModeSwitch";
 import { useSessionStore } from "@renderer/state/sessionStore";
 import {
   areMediaControlsEnabled,
@@ -19,9 +18,7 @@ import { liveClientAdapter } from "@renderer/services/live/liveClientAdapter";
 import { useI18n } from "@renderer/i18n/useI18n";
 import type { VoiceTurnTelemetryEvent } from "@shared/types/live";
 import { PageHeader } from "@renderer/components/layout/PageHeader";
-import { SectionCard } from "@renderer/components/layout/SectionCard";
 import type { DisplaySourceDescriptor } from "@shared/types/ipc";
-import { SparkIcon } from "@renderer/components/ui/Icons";
 
 const audioController = new AudioInputController();
 const screenController = new ScreenCaptureController();
@@ -70,9 +67,6 @@ export function CallPage() {
     () => areMediaControlsEnabled(session.status),
     [session.status]
   );
-  const runtimeApiVersion = session.effectiveConfig?.apiVersion ?? null;
-  const apiVersionError =
-    session.status === "error" && session.lastError ? session.lastError : "";
 
   useEffect(() => {
     void liveClientAdapter.setVolume(settingsStore.settings.audio.modelVolume);
@@ -839,30 +833,6 @@ export function CallPage() {
               </>
             }
           />
-        </div>
-
-        <div className="call-side-column">
-          <SectionCard
-            title={copy.callPage.assistantModeTitle}
-            description={copy.callPage.assistantModeDescription}
-          >
-            <div className="call-mode-card">
-              <SparkIcon />
-              <ProactiveModeSwitch
-                value={settingsStore.settings.api.proactiveMode}
-                requestedApiVersion={settingsStore.settings.api.apiVersion}
-                runtimeApiVersion={runtimeApiVersion}
-                errorText={apiVersionError}
-                compact
-                onChange={(value) =>
-                  settingsStore.update((draft) => {
-                    draft.api.proactiveMode = value;
-                    return draft;
-                  })
-                }
-              />
-            </div>
-          </SectionCard>
         </div>
       </div>
 

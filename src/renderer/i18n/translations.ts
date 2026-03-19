@@ -168,7 +168,12 @@ export interface TranslationDictionary {
       apiVersionAuto: string;
       apiVersionHelp: string;
       voice: string;
+      thinkingMode: string;
+      thinkingModeHelp: string;
       thinkingBudget: string;
+      thinkingBudgetHelp: string;
+      thinkingIncludeThoughts: string;
+      thinkingLevel: string;
       modelVolume: string;
       autoActivityDetection: string;
       manualVadMode: string;
@@ -197,6 +202,18 @@ export interface TranslationDictionary {
         high: string;
       };
       proactiveMode: Record<ProactiveMode, string>;
+      thinkingMode: {
+        off: string;
+        auto: string;
+        custom: string;
+      };
+      thinkingLevel: {
+        model_default: string;
+        minimal: string;
+        low: string;
+        medium: string;
+        high: string;
+      };
     };
     saveSettings: string;
   };
@@ -349,7 +366,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
         system: "System"
       },
       status: {
-        partial: "partial",
+        partial: "live",
         final: "final"
       }
     },
@@ -398,7 +415,14 @@ export const translations: Record<Locale, TranslationDictionary> = {
         apiVersionHelp:
           "Auto rule: v1alpha is used when Proactive Mode is not off or Affective Dialog is enabled.",
         voice: "Voice",
+        thinkingMode: "Thinking Mode",
+        thinkingModeHelp:
+          "Off disables reasoning. Auto lets the model decide. Custom lets you set a budget manually.",
         thinkingBudget: "Thinking Budget",
+        thinkingBudgetHelp:
+          "Custom mode budget range in this app: 128-8192 tokens. API model limits may vary.",
+        thinkingIncludeThoughts: "Include Thought Summaries",
+        thinkingLevel: "Thinking Level",
         modelVolume: "Model Volume",
         autoActivityDetection: "Auto Activity Detection",
         manualVadMode: "Manual VAD Mode",
@@ -430,6 +454,18 @@ export const translations: Record<Locale, TranslationDictionary> = {
           off: "Off",
           pure: "Pure",
           assisted: "Assisted"
+        },
+        thinkingMode: {
+          off: "Off",
+          auto: "Auto",
+          custom: "Custom"
+        },
+        thinkingLevel: {
+          model_default: "Model default",
+          minimal: "Minimal",
+          low: "Low",
+          medium: "Medium",
+          high: "High"
         }
       },
       saveSettings: "Save Settings"
@@ -581,7 +617,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
         system: "Система"
       },
       status: {
-        partial: "черновик",
+        partial: "live",
         final: "финал"
       }
     },
@@ -630,7 +666,14 @@ export const translations: Record<Locale, TranslationDictionary> = {
         apiVersionHelp:
           "Автоправило: используется v1alpha, если проактивный режим не выключен или включён аффективный диалог.",
         voice: "Голос",
+        thinkingMode: "Режим размышления",
+        thinkingModeHelp:
+          "Выкл отключает размышление. Авто отдаёт выбор модели. Custom позволяет задать бюджет вручную.",
         thinkingBudget: "Бюджет размышления",
+        thinkingBudgetHelp:
+          "Для режима Custom в приложении доступно 128-8192 токенов. Фактические лимиты зависят от модели API.",
+        thinkingIncludeThoughts: "Показывать резюме размышлений",
+        thinkingLevel: "Уровень размышления",
         modelVolume: "Громкость модели",
         autoActivityDetection: "Автоопределение активности",
         manualVadMode: "Ручной режим VAD",
@@ -662,6 +705,18 @@ export const translations: Record<Locale, TranslationDictionary> = {
           off: "Выкл",
           pure: "Чистый",
           assisted: "С поддержкой"
+        },
+        thinkingMode: {
+          off: "Выкл",
+          auto: "Авто",
+          custom: "Свой"
+        },
+        thinkingLevel: {
+          model_default: "По умолчанию модели",
+          minimal: "Минимальный",
+          low: "Низкий",
+          medium: "Средний",
+          high: "Высокий"
         }
       },
       saveSettings: "Сохранить настройки"

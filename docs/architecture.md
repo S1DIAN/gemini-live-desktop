@@ -29,6 +29,7 @@ The app is split into five runtime layers:
 - Requested API version is auto-derived from session capabilities (`proactiveMode` and `enableAffectiveDialog`) before connect commands are sent.
 - Runtime capability normalization, not the UI, is the final authority for effective live config.
 - The current default model lives in `defaultSettings` and is `gemini-2.5-flash-native-audio-preview-12-2025`; the current default voice is `Aoede`.
+- Thinking mode is explicitly modeled as `off`/`auto`/`custom` in app settings and mapped to Live API budget as `0`/`-1`/custom budget before worker connect.
 - Gemini Developer API live connect keeps automatic activity detection enabled; client-side manual activity signaling (`activityStart`/`activityEnd`) is not wired yet.
 - Microphone pause events must trigger `audioStreamEnd` delivery while automatic activity detection is active to flush cached audio.
 - Closing the last window on Windows must attempt a short graceful session disconnect, then tear down the worker process tree and terminate the app fully.
@@ -51,6 +52,7 @@ The app is split into five runtime layers:
 - `main` validates and persists settings in a versioned JSON file.
 - API version in settings is auto-derived (`v1alpha` for proactive or affective features, otherwise `v1beta`) during normalization and save.
 - Settings normalization performs a lightweight proactive-tuning migration for legacy defaults (`changeThreshold=0.22` -> `0.12`, `maxAutonomousCommentFrequencyMs=12000` -> `6000`) to reduce assisted commentary latency.
+- Settings normalization also applies legacy thinking migration so old persisted `thinkingBudget` values map into explicit thinking mode (`off`/`auto`/`custom`) without breaking existing installs.
 - API keys are stored separately as an encrypted blob through `safeStorage`.
 - The renderer can observe key presence and a masked label, but never the saved plaintext key.
 
@@ -71,6 +73,7 @@ The app is split into five runtime layers:
 6. If normalization succeeds, worker logs the normalization decisions and effective session snapshot, builds bootstrap context, then opens the Gemini Live session.
    For Gemini API compatibility, session resumption uses the resume handle only and does not send the Vertex-only `transparent` flag.
    Live transcription uses an empty `AudioTranscriptionConfig`; Gemini Developer API live connect does not accept `languageCodes`.
+   Thinking config is sent with normalized budget plus optional thought summaries and optional thinking level (`model default` leaves level unset).
    Manual VAD mode is normalized off in this client until `activityStart`/`activityEnd` signaling is implemented end-to-end.
    The Call page surfaces both the requested API version and the runtime effective version, plus inline error text for failed session actions.
 
@@ -145,7 +148,7 @@ The worker does not own UI state or browser media capture.
 
 - `LiveSessionManager` owns session lifecycle and adapter binding.
 - `LiveSessionManager` also owns per-turn latency context correlation between renderer telemetry, local implicit turn finalization, server ack/detection, model callbacks and playback completion, plus response start-type classification (`reactive_user_turn`, `autonomous_proactive`, `unknown`) and proactive trigger-to-model-start latency emission.
-- `SessionControls` owns the fixed call dock, including the compact live camera/screen preview tiles shown when local capture is enabled.
+- `SessionControls` owns the fixed call dock, including the compact live camera/screen preview tiles shown when local capture is enabled and the dock-level quick AI settings drawer (model/voice/assistant-mode/thinking tuning).
 - `ReconnectManager` owns retry timing and resume or fresh-session fallback.
 - `CapabilityNormalizer` owns effective config derivation and hard gating.
 - `BootstrapBuilder` owns startup and system-instruction composition.
@@ -161,7 +164,8 @@ The worker does not own UI state or browser media capture.
 - `src/main/ipc/*.ts` expose settings, live, diagnostics and display-media IPC.
 - `src/main/workers/liveWorkerLauncher.ts` owns the utility-process handshake, command queueing, connect watchdog and process-tree shutdown.
 - `src/preload/bridges/*.ts` expose the minimal renderer bridge surface.
-- `src/renderer/app/routes.tsx` owns top-level navigation and locale switching.
+- `src/renderer/app/routes.tsx` owns top-level navigation.
+- `src/renderer/components/layout/LocaleDock.tsx` owns the fixed bottom locale switcher UI (`en`/`ru`).
 - `src/renderer/pages/*` compose page-level UI only.
 - `src/renderer/components/TranscriptPanel.tsx` renders the chat-style transcript feed, and `src/renderer/components/SessionControls.tsx` owns the bottom dock plus compact preview tiles.
 - `src/renderer/services/audio/*` owns local capture and playback control.

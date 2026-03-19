@@ -27,11 +27,7 @@ export const useTranscriptStore = create<TranscriptStoreState>((set) => ({
             text: mergedText
           };
         } else {
-          next[replacementIndex] = {
-            ...(previous ?? entry),
-            status: "final"
-          };
-          next.push(entry);
+          next[replacementIndex] = entry;
         }
       } else {
         next.push(entry);

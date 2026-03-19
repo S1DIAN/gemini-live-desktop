@@ -2,6 +2,18 @@ export type ApiVersion = "v1beta" | "v1alpha";
 export type ProactiveMode = "off" | "pure" | "assisted";
 export type CommentLengthPreset = "short" | "medium" | "long";
 export type SpeechLanguageCode = "en" | "ru";
+export type ThinkingMode = "off" | "auto" | "custom";
+export type ThinkingLevelPreset =
+  | "model_default"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high";
+
+export const THINKING_BUDGET_AUTO = -1;
+export const THINKING_BUDGET_OFF = 0;
+export const THINKING_BUDGET_MIN = 128;
+export const THINKING_BUDGET_MAX = 8192;
 
 export interface ApiSettings {
   model: string;
@@ -12,7 +24,10 @@ export interface ApiSettings {
   outputTranscriptionEnabled: boolean;
   enableAffectiveDialog: boolean;
   proactiveMode: ProactiveMode;
+  thinkingMode: ThinkingMode;
   thinkingBudget: number;
+  thinkingIncludeThoughts: boolean;
+  thinkingLevel: ThinkingLevelPreset;
 }
 
 export interface AudioDetectionSettings {
@@ -77,7 +92,10 @@ export const defaultSettings: AppSettings = {
     outputTranscriptionEnabled: true,
     enableAffectiveDialog: false,
     proactiveMode: "off",
-    thinkingBudget: 0
+    thinkingMode: "off",
+    thinkingBudget: THINKING_BUDGET_OFF,
+    thinkingIncludeThoughts: false,
+    thinkingLevel: "model_default"
   },
   audio: {
     inputDeviceId: "",
@@ -133,4 +151,21 @@ export function applyAutoApiVersion(settings: AppSettings): AppSettings {
     settings.api.enableAffectiveDialog
   );
   return settings;
+}
+
+export function resolveThinkingBudget(
+  thinkingMode: ThinkingMode,
+  thinkingBudget: number
+): number {
+  if (thinkingMode === "off") {
+    return THINKING_BUDGET_OFF;
+  }
+  if (thinkingMode === "auto") {
+    return THINKING_BUDGET_AUTO;
+  }
+  const clampedBudget = Math.max(
+    THINKING_BUDGET_MIN,
+    Math.min(THINKING_BUDGET_MAX, Math.round(thinkingBudget))
+  );
+  return clampedBudget;
 }

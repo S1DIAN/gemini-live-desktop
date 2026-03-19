@@ -8,7 +8,11 @@ import {
 import type { SettingsRepository } from "../settingsRepository";
 import type { SecureKeyStorage } from "../security/secureStorage";
 import type { LiveWorkerLauncher } from "../workers/liveWorkerLauncher";
-import { getAutoApiVersion, type AppSettings } from "../../shared/types/settings";
+import {
+  getAutoApiVersion,
+  resolveThinkingBudget,
+  type AppSettings
+} from "../../shared/types/settings";
 import type { WorkerConnectRequest } from "../../shared/types/live";
 
 export function registerLiveIpc(
@@ -67,7 +71,13 @@ function mapSettingsToWorkerRequest(
       speechLanguageCode:
         speechLanguageCodeOverride ?? settings.api.speechLanguageCode,
       proactiveMode: settings.api.proactiveMode,
-      thinkingBudget: settings.api.thinkingBudget,
+      thinkingMode: settings.api.thinkingMode,
+      thinkingBudget: resolveThinkingBudget(
+        settings.api.thinkingMode,
+        settings.api.thinkingBudget
+      ),
+      thinkingIncludeThoughts: settings.api.thinkingIncludeThoughts,
+      thinkingLevel: settings.api.thinkingLevel,
       mediaResolution: settings.visual.mediaResolution,
       enableAffectiveDialog: settings.api.enableAffectiveDialog,
       inputTranscriptionEnabled: settings.api.inputTranscriptionEnabled,

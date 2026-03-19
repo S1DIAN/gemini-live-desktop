@@ -4,6 +4,11 @@ import { useSessionStore } from "@renderer/state/sessionStore";
 import { hasLiveSession } from "@renderer/state/sessionStatus";
 import { useI18n } from "@renderer/i18n/useI18n";
 import { LIVE_PREBUILT_VOICE_NAMES } from "@shared/constants/liveSpeech";
+import {
+  THINKING_BUDGET_MAX,
+  THINKING_BUDGET_MIN,
+  type ThinkingMode
+} from "@shared/types/settings";
 import { PageHeader } from "@renderer/components/layout/PageHeader";
 import { SectionCard } from "@renderer/components/layout/SectionCard";
 import { SettingsRow } from "@renderer/components/layout/SettingsRow";
@@ -186,21 +191,113 @@ export function SettingsPage() {
               }
             />
             <SettingsRow
-              label={settingsCopy.fields.thinkingBudget}
+              label={settingsCopy.fields.thinkingMode}
+              description={settingsCopy.fields.thinkingModeHelp}
               control={
-                <input
+                <select
                   disabled={sessionConfigLocked}
-                  type="number"
-                  min="-1"
-                  max="8192"
-                  value={settings.api.thinkingBudget}
+                  value={settings.api.thinkingMode}
                   onChange={(event) =>
                     update((draft) => {
-                      draft.api.thinkingBudget = Number(event.target.value);
+                      const nextMode = event.target.value as ThinkingMode;
+                      draft.api.thinkingMode = nextMode;
+                      if (nextMode === "off") {
+                        draft.api.thinkingBudget = 0;
+                      } else if (nextMode === "auto") {
+                        draft.api.thinkingBudget = -1;
+                      } else if (draft.api.thinkingBudget < THINKING_BUDGET_MIN) {
+                        draft.api.thinkingBudget = THINKING_BUDGET_MIN;
+                      }
+                      return draft;
+                    })
+                  }
+                >
+                  <option value="off">{settingsCopy.options.thinkingMode.off}</option>
+                  <option value="auto">{settingsCopy.options.thinkingMode.auto}</option>
+                  <option value="custom">
+                    {settingsCopy.options.thinkingMode.custom}
+                  </option>
+                </select>
+              }
+            />
+            {settings.api.thinkingMode === "custom" ? (
+              <SettingsRow
+                label={settingsCopy.fields.thinkingBudget}
+                description={settingsCopy.fields.thinkingBudgetHelp}
+                control={
+                  <input
+                    disabled={sessionConfigLocked}
+                    type="number"
+                    min={THINKING_BUDGET_MIN}
+                    max={THINKING_BUDGET_MAX}
+                    value={settings.api.thinkingBudget}
+                    onChange={(event) => {
+                      const parsed = Number(event.target.value);
+                      if (!Number.isFinite(parsed)) {
+                        return;
+                      }
+                      const clamped = Math.max(
+                        THINKING_BUDGET_MIN,
+                        Math.min(THINKING_BUDGET_MAX, Math.round(parsed))
+                      );
+                      update((draft) => {
+                        draft.api.thinkingBudget = clamped;
+                        return draft;
+                      });
+                    }}
+                  />
+                }
+              />
+            ) : null}
+            <SettingsRow
+              label={settingsCopy.fields.thinkingIncludeThoughts}
+              control={
+                <Switch
+                  checked={settings.api.thinkingIncludeThoughts}
+                  disabled={sessionConfigLocked}
+                  onChange={(next) =>
+                    update((draft) => {
+                      draft.api.thinkingIncludeThoughts = next;
                       return draft;
                     })
                   }
                 />
+              }
+            />
+            <SettingsRow
+              label={settingsCopy.fields.thinkingLevel}
+              control={
+                <select
+                  disabled={sessionConfigLocked}
+                  value={settings.api.thinkingLevel}
+                  onChange={(event) =>
+                    update((draft) => {
+                      draft.api.thinkingLevel = event.target.value as
+                        | "model_default"
+                        | "minimal"
+                        | "low"
+                        | "medium"
+                        | "high";
+                      return draft;
+                    })
+                  }
+                >
+                  <option value="model_default">
+                    {settingsCopy.options.thinkingLevel.model_default}
+                  </option>
+                  <option value="minimal">
+                    {settingsCopy.options.thinkingLevel.minimal}
+                  </option>
+                  <option value="low">
+                    {settingsCopy.options.thinkingLevel.low}
+                  </option>
+                  <option value="medium">
+                    {settingsCopy.options.thinkingLevel.medium}
+                  </option>
+                  <option value="high">
+                    {settingsCopy.options.thinkingLevel.high}
+                  </option>
+                </select>
               }
             />
           </div>

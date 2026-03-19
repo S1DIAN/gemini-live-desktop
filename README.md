@@ -12,9 +12,12 @@ Windows-only Electron desktop client for Gemini Live with secure key handling, r
 - Microphone, camera, and screen capture with binary worker transport.
 - Turn latency telemetry, diagnostics export, and turn-final model transcript rendering.
 - Chat-style transcript with compact dock-anchored camera/screen previews.
+- Dock-level quick AI settings panel (gear) for model, voice, assistant mode and thinking controls.
+- Fixed bottom language dock (`English`/`Russian`) for quick runtime locale switching.
 - `Pause` preserves resumable session state; `Disconnect` resets session state.
 - English and Russian UI with runtime switching.
 - Pure and assisted proactive modes with capability normalization.
+- Thinking configuration with explicit `off` / `auto` / `custom` modes, budget range guidance, thought-summary toggle and thinking-level selection.
 - Worker lifecycle handling, reconnect support, and session resumption.
 
 ## Tech Stack
@@ -65,7 +68,7 @@ npm run dist:win
 
 1. Start the app.
 2. Open Settings and save a Gemini API key.
-3. Configure model, voice, devices, visual settings, behavior, and diagnostics options.
+3. Configure model, voice, thinking mode (`off`/`auto`/`custom`), devices, visual settings, behavior, and diagnostics options.
 4. Return to the Call page and connect a live session.
 5. Enable microphone, camera, and screen capture as needed.
 6. Use realtime controls while connected.
@@ -87,6 +90,7 @@ npm run dist:win
 
 - Default model: `gemini-2.5-flash-native-audio-preview-12-2025`.
 - API version is auto-selected from Proactive Mode and Affective Dialog settings.
+- Thinking mode maps to API budget as: `off -> 0`, `auto -> -1`, `custom -> [128..8192]` (app-side guardrails).
 - `Pause` preserves resumable state; `Disconnect` starts a fresh session next time.
 - Renderer language is stored locally and applied as a speech-language override on the next connect.
 - Default voice list uses Gemini TTS voice names.

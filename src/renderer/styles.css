@@ -295,6 +295,30 @@ pre {
   margin: 0 auto;
 }
 
+.locale-dock {
+  position: fixed;
+  left: calc(var(--sidebar-w) + 28px);
+  bottom: 112px;
+  z-index: 9;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(96px, 1fr));
+  gap: 8px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid var(--border-default);
+  background: rgba(17, 23, 34, 0.94);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(8px);
+}
+
+.locale-dock button {
+  min-height: 36px;
+  padding-inline: 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
 .page-shell,
 .page,
 .settings-list,
@@ -583,14 +607,18 @@ pre {
 }
 
 .call-page {
-  padding-bottom: 180px;
+  height: calc(100vh - 64px);
+  overflow: hidden;
+  padding-bottom: 112px;
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .call-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
+  min-height: 0;
 }
 
 .call-main-column,
@@ -598,6 +626,7 @@ pre {
 .call-preview-stack {
   display: grid;
   gap: 16px;
+  min-height: 0;
 }
 
 .call-mode-card {
@@ -708,6 +737,10 @@ pre {
   position: relative;
 }
 
+.dock-settings-wrap {
+  z-index: 5;
+}
+
 .dock-picker {
   position: absolute;
   right: 0;
@@ -727,6 +760,141 @@ pre {
   min-height: 38px;
   padding-inline: 12px;
   background: transparent;
+}
+
+.dock-ai-settings-panel {
+  position: absolute;
+  right: 6px;
+  bottom: calc(100% + 14px);
+  width: min(312px, calc(100vw - 52px));
+  max-height: min(68vh, 560px);
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(12, 19, 31, 0.98) 0%,
+    rgba(9, 15, 26, 0.98) 100%
+  );
+  border: 1px solid var(--border-default);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.38);
+  opacity: 0;
+  transform: translateX(10px) translateY(4px);
+  pointer-events: none;
+  transition:
+    opacity 150ms ease,
+    transform 170ms ease;
+}
+
+.dock-ai-settings-panel.open {
+  opacity: 1;
+  transform: translateX(0) translateY(0);
+  pointer-events: auto;
+}
+
+.dock-ai-settings-section {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.dock-ai-settings-section:last-of-type {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.dock-ai-settings-label {
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 700;
+}
+
+.dock-ai-settings-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 26px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+}
+
+.dock-ai-settings-range-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.dock-ai-settings-panel input,
+.dock-ai-settings-panel select {
+  min-height: 34px;
+  border-radius: 10px;
+  padding-inline: 10px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.dock-ai-settings-panel .value-pill {
+  min-width: 54px;
+  min-height: 30px;
+  padding-inline: 9px;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.dock-ai-settings-panel .switch {
+  width: 36px;
+  min-height: 20px;
+}
+
+.dock-ai-settings-panel .switch-thumb {
+  top: 1px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+}
+
+.dock-ai-settings-panel .switch.checked .switch-thumb {
+  left: 17px;
+}
+
+.dock-ai-settings-item-locked {
+  opacity: 0.48;
+}
+
+.dock-ai-settings-item-locked .dock-ai-settings-label,
+.dock-ai-settings-item-locked span {
+  color: var(--text-disabled);
+}
+
+.dock-ai-settings-panel input:disabled,
+.dock-ai-settings-panel select:disabled {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-disabled);
+}
+
+.dock-ai-settings-panel .switch:disabled,
+.dock-ai-settings-panel .switch.checked:disabled {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dock-ai-settings-panel .switch:disabled .switch-thumb,
+.dock-ai-settings-panel .switch.checked:disabled .switch-thumb {
+  background: rgba(255, 255, 255, 0.56);
 }
 
 .preview-panel .panel-title {
@@ -773,11 +941,15 @@ pre {
 .transcript-panel {
   display: grid;
   gap: 0;
+  min-height: 0;
+  height: 100%;
 }
 
 .transcript-panel-body {
   display: grid;
   gap: 12px;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
 }
 
 .transcript-composer {
@@ -801,6 +973,11 @@ pre {
 .log-list {
   max-height: 560px;
   overflow: auto;
+}
+
+.call-page .transcript-thread {
+  max-height: none;
+  min-height: 0;
 }
 
 .transcript-empty {
@@ -1102,6 +1279,10 @@ pre {
   .locale-switch {
     grid-template-columns: 1fr;
   }
+
+  .locale-dock {
+    left: 92px;
+  }
 }
 
 @media (max-width: 920px) {
@@ -1143,6 +1324,12 @@ pre {
     bottom: 14px;
   }
 
+  .locale-dock {
+    left: 16px;
+    bottom: 92px;
+    grid-template-columns: repeat(2, minmax(88px, 1fr));
+  }
+
   .session-dock-control-bar {
     justify-content: flex-start;
   }
@@ -1155,5 +1342,10 @@ pre {
   .session-dock-floating-previews {
     position: static;
     margin-right: 4px;
+  }
+
+  .dock-ai-settings-panel {
+    right: 0;
+    width: min(296px, calc(100vw - 40px));
   }
 }

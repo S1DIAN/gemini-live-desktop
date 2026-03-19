@@ -5,6 +5,7 @@ import {
   Modality,
   StartSensitivity,
   EndSensitivity,
+  ThinkingLevel,
   TurnCoverage,
   type LiveCallbacks,
   type LiveConnectConfig,
@@ -96,7 +97,11 @@ class GeminiLiveAdapter implements LiveAdapter {
       responseModalities: [Modality.AUDIO],
       systemInstruction: bootstrap.systemInstruction,
       thinkingConfig: {
-        thinkingBudget: this.effectiveConfig.snapshot.thinkingBudget
+        thinkingBudget: this.effectiveConfig.snapshot.thinkingBudget,
+        includeThoughts: this.effectiveConfig.snapshot.thinkingIncludeThoughts,
+        thinkingLevel: toThinkingLevel(
+          this.effectiveConfig.snapshot.thinkingLevel
+        )
       },
       speechConfig: {
         languageCode: this.effectiveConfig.snapshot.speechLanguageCode,
@@ -1349,6 +1354,23 @@ function toMediaResolution(
     case "medium":
     default:
       return MediaResolution.MEDIA_RESOLUTION_MEDIUM;
+  }
+}
+
+function toThinkingLevel(
+  value: EffectiveRuntimeConfig["snapshot"]["thinkingLevel"]
+): ThinkingLevel | undefined {
+  switch (value) {
+    case "minimal":
+      return ThinkingLevel.MINIMAL;
+    case "low":
+      return ThinkingLevel.LOW;
+    case "medium":
+      return ThinkingLevel.MEDIUM;
+    case "high":
+      return ThinkingLevel.HIGH;
+    default:
+      return undefined;
   }
 }
 
