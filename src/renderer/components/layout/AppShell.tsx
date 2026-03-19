@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { LocaleDock } from "@renderer/components/layout/LocaleDock";
 
 export function AppShell({
   sidebar,
@@ -14,7 +13,6 @@ export function AppShell({
       <main className="app-main">
         <div className="app-main-inner">{children}</div>
       </main>
-      <LocaleDock />
     </div>
   );
 }

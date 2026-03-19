@@ -6,7 +6,7 @@ import {
   SettingsIcon
 } from "@renderer/components/ui/Icons";
 export function Sidebar() {
-  const { copy } = useI18n();
+  const { locale, setLocale, copy } = useI18n();
 
   const navItems = [
     { to: "/", label: copy.app.navigation.call, icon: <PhoneIcon /> },
@@ -29,6 +29,26 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      <div className="sidebar-footer">
+        <div className="sidebar-footer-title">{copy.app.language.label}</div>
+        <div className="locale-switch">
+          <button
+            type="button"
+            className={locale === "en" ? "active" : ""}
+            onClick={() => setLocale("en")}
+          >
+            {copy.app.language.english}
+          </button>
+          <button
+            type="button"
+            className={locale === "ru" ? "active" : ""}
+            onClick={() => setLocale("ru")}
+          >
+            {copy.app.language.russian}
+          </button>
+        </div>
+      </div>
     </aside>
   );
 }

@@ -13,7 +13,7 @@ Windows-only Electron desktop client for Gemini Live with secure key handling, r
 - Turn latency telemetry, diagnostics export, and turn-final model transcript rendering.
 - Chat-style transcript with compact dock-anchored camera/screen previews.
 - Dock-level quick AI settings panel (gear) for model, voice, assistant mode and thinking controls.
-- Fixed bottom language dock (`English`/`Russian`) for quick runtime locale switching.
+- Sidebar language switcher (`English`/`Russian`) remains pinned at the bottom of the left column.
 - `Pause` preserves resumable session state; `Disconnect` resets session state.
 - English and Russian UI with runtime switching.
 - Pure and assisted proactive modes with capability normalization.

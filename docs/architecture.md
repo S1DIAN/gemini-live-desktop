@@ -165,7 +165,7 @@ The worker does not own UI state or browser media capture.
 - `src/main/workers/liveWorkerLauncher.ts` owns the utility-process handshake, command queueing, connect watchdog and process-tree shutdown.
 - `src/preload/bridges/*.ts` expose the minimal renderer bridge surface.
 - `src/renderer/app/routes.tsx` owns top-level navigation.
-- `src/renderer/components/layout/LocaleDock.tsx` owns the fixed bottom locale switcher UI (`en`/`ru`).
+- `src/renderer/components/layout/Sidebar.tsx` owns the left navigation rail and pinned bottom locale switcher UI (`en`/`ru`).
 - `src/renderer/pages/*` compose page-level UI only.
 - `src/renderer/components/TranscriptPanel.tsx` renders the chat-style transcript feed, and `src/renderer/components/SessionControls.tsx` owns the bottom dock plus compact preview tiles.
 - `src/renderer/services/audio/*` owns local capture and playback control.
