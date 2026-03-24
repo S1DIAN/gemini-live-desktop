@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import net from "node:net";
 import {
   connectPayloadSchema,
   disconnectPayloadSchema,
@@ -50,6 +51,36 @@ export function registerLiveIpc(
   ipcMain.handle("live:request-media-transport", (event) =>
     workerLauncher.attachMediaPorts(event.sender)
   );
+  ipcMain.handle("live:probe-network-latency", () =>
+    probeNetworkLatency("generativelanguage.googleapis.com", 443, 3000)
+  );
+}
+
+function probeNetworkLatency(
+  host: string,
+  port: number,
+  timeoutMs: number
+): Promise<number | null> {
+  return new Promise((resolve) => {
+    const startedAt = Date.now();
+    const socket = net.createConnection({ host, port });
+    let settled = false;
+
+    const finish = (value: number | null) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      socket.destroy();
+      resolve(value);
+    };
+
+    socket.once("connect", () => {
+      finish(Math.max(0, Date.now() - startedAt));
+    });
+    socket.once("error", () => finish(null));
+    socket.setTimeout(timeoutMs, () => finish(null));
+  });
 }
 
 function mapSettingsToWorkerRequest(

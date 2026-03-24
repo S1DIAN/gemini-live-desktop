@@ -21,6 +21,7 @@ ipcRenderer.on("live:port", (event, message) => {
 export const liveBridge: LiveBridgeApi = {
   connect: (payload) => ipcRenderer.invoke("live:connect", payload ?? {}),
   disconnect: (mode = "pause") => ipcRenderer.invoke("live:disconnect", { mode }),
+  probeNetworkLatency: () => ipcRenderer.invoke("live:probe-network-latency"),
   sendTextMessage: (text, hidden = false, source = "manual_user_text") =>
     ipcRenderer.invoke("live:send-text", { text, hidden, source }),
   requestMediaTransport: () => ipcRenderer.invoke("live:request-media-transport"),

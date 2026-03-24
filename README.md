@@ -21,7 +21,7 @@ Windows-only Electron desktop client for Gemini Live with secure key handling, r
 - Thinking configuration with explicit `off` / `auto` / `custom` modes, budget range guidance, thought-summary toggle and thinking-level selection.
 - Worker lifecycle handling, reconnect support, and session resumption.
 - Settings edits are autosaved shortly after changes; no manual "Save Settings" action is required.
-- Optional live timing side panel on the Call page, driven by diagnostics checkpoint events for quick latency breakdowns.
+- Optional live timing side panel on the Call page, driven by diagnostics checkpoint events for quick latency breakdowns plus a network ping estimate from periodic TCP probe to Gemini API endpoint (`generativelanguage.googleapis.com:443`).
 
 ## Tech Stack
 

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DiagnosticsEvent } from "@shared/types/diagnostics";
 import type { SessionStatus } from "@shared/types/live";
 import { useI18n } from "@renderer/i18n/useI18n";
@@ -16,6 +16,7 @@ const TURN_EVENT_ORDER = [
   "vad_speech_started",
   "vad_speech_ended",
   "user_turn_input_completed",
+  "client_turn_commit_sent",
   "server_turn_ack_received",
   "server_turn_detected",
   "model_response_started",
@@ -64,6 +65,11 @@ const TEXT = {
       firstAudioToPlayback: "First audio -> playback",
       totalTurn: "Total turn"
     },
+    metricsSectionTitle: "Turn breakdown",
+    pingSectionTitle: "Network estimate",
+    currentPing: "Estimated ping",
+    rollingPing: "Rolling ping",
+    rollingPingHint: "median / p95",
     checkpointsTitle: "Checkpoint Timeline",
     noTurn:
       "No voice turn yet. Start speaking to see live latency checkpoints.",
@@ -105,6 +111,11 @@ const TEXT = {
       firstAudioToPlayback: "Первый аудио-чанк -> воспроизведение",
       totalTurn: "Полная длительность хода"
     },
+    metricsSectionTitle: "Срез хода",
+    pingSectionTitle: "Сетевая оценка",
+    currentPing: "Пинг",
+    rollingPing: "Скользящий пинг",
+    rollingPingHint: "медиана / p95",
     checkpointsTitle: "Лента чекпоинтов",
     noTurn:
       "Пока нет голосового хода. Начните говорить, чтобы увидеть тайминги.",
@@ -135,6 +146,8 @@ export function LiveLatencyPanel({
 }: LiveLatencyPanelProps) {
   const { locale } = useI18n();
   const text = locale === "ru" ? TEXT.ru : TEXT.en;
+  const [apiProbeCurrentMs, setApiProbeCurrentMs] = useState<number | null>(null);
+  const [apiProbeSamples, setApiProbeSamples] = useState<number[]>([]);
 
   const latestTurnId = useMemo(() => {
     const grouped = new Map<
@@ -245,6 +258,10 @@ export function LiveLatencyPanel({
     userSpeaking,
     waitingForInput
   ]);
+  const shouldProbeNetwork =
+    sessionStatus === "connected" ||
+    sessionStatus === "reconnecting" ||
+    sessionStatus === "disconnecting";
 
   const metrics: MetricRow[] = [
     {
@@ -260,6 +277,10 @@ export function LiveLatencyPanel({
       key: "commitToAck",
       valueMs:
         numberFromRecord(summaryDetails, "clientTurnCommitToServerAckMs") ??
+        latency(
+          byEvent.get("client_turn_commit_sent")?.timestamp,
+          byEvent.get("server_turn_ack_received")?.timestamp
+        ) ??
         latency(
           byEvent.get("user_turn_input_completed")?.timestamp,
           byEvent.get("server_turn_ack_received")?.timestamp
@@ -307,9 +328,7 @@ export function LiveLatencyPanel({
     const firstTimestamp = turnEvents[0]?.timestamp;
     return turnEvents
       .filter(
-        (event) =>
-          event.event &&
-          event.event in text.checkpointLabels
+        (event) => event.event && event.event in text.checkpointLabels
       )
       .map((event) => ({
         id: event.id,
@@ -321,6 +340,57 @@ export function LiveLatencyPanel({
             : null
       }));
   }, [text.checkpointLabels, turnEvents]);
+
+  useEffect(() => {
+    if (!shouldProbeNetwork) {
+      return;
+    }
+    let cancelled = false;
+    let running = false;
+
+    const runProbe = async () => {
+      if (running) {
+        return;
+      }
+      running = true;
+      try {
+        const value = await window.appApi.live.probeNetworkLatency();
+        if (cancelled) {
+          return;
+        }
+        if (value === null) {
+          return;
+        }
+        setApiProbeCurrentMs(value);
+        setApiProbeSamples((previous) => {
+          const next = [...previous, value];
+          return next.slice(-24);
+        });
+      } catch {
+        // Ignore transient probe errors; keep the last known latency value.
+      } finally {
+        running = false;
+      }
+    };
+
+    void runProbe();
+    const timer = window.setInterval(() => {
+      void runProbe();
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [shouldProbeNetwork]);
+
+  const pingStats = useMemo(() => {
+    const samples = apiProbeSamples.slice().sort((a, b) => a - b);
+    return {
+      medianMs: percentile(samples, 0.5),
+      p95Ms: percentile(samples, 0.95)
+    };
+  }, [apiProbeSamples]);
 
   return (
     <aside className="panel live-latency-panel">
@@ -335,33 +405,55 @@ export function LiveLatencyPanel({
         {text.turnLabel}: {latestTurnId ? shortenTurnId(latestTurnId) : "-"}
       </div>
 
-      <div className="live-latency-metrics">
-        {metrics.map((metric) => (
-          <div key={metric.key} className="live-latency-metric-row">
-            <span>{text.metrics[metric.key]}</span>
-            <strong>{formatDuration(metric.valueMs)}</strong>
-          </div>
-        ))}
-      </div>
+      <section className="live-latency-section">
+        <div className="live-latency-section-title">{text.metricsSectionTitle}</div>
+        <div className="live-latency-metrics-grid">
+          {metrics.map((metric) => (
+            <div key={metric.key} className="live-latency-metric-row">
+              <span>{text.metrics[metric.key]}</span>
+              <strong>{formatDuration(metric.valueMs)}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="live-latency-section live-latency-ping-card">
+        <div className="live-latency-section-title">{text.pingSectionTitle}</div>
+        <div className="live-latency-ping-topline">
+          <span>{text.currentPing}</span>
+          <strong>{formatPing(apiProbeCurrentMs)}</strong>
+        </div>
+        <div className="live-latency-ping-rolling">
+          <span>{text.rollingPing}</span>
+          <strong>
+            {formatPing(pingStats.medianMs)} / {formatPing(pingStats.p95Ms)}
+          </strong>
+        </div>
+        <div className="live-latency-ping-summary">{text.rollingPingHint}</div>
+      </section>
 
       <div className="live-latency-divider" />
 
-      <div className="live-latency-timeline-title">{text.checkpointsTitle}</div>
-      <div className="live-latency-timeline">
-        {checkpoints.length === 0 ? (
-          <div className="live-latency-empty">{text.noTurn}</div>
-        ) : (
-          checkpoints.map((checkpoint) => (
-            <div key={checkpoint.id} className="live-latency-checkpoint">
-              <span className="live-latency-checkpoint-label">{checkpoint.label}</span>
-              <span className="live-latency-checkpoint-time">
-                {checkpoint.time}
-                {checkpoint.relative ? ` (${checkpoint.relative})` : ""}
-              </span>
-            </div>
-          ))
-        )}
-      </div>
+      <section className="live-latency-section">
+        <div className="live-latency-timeline-title">{text.checkpointsTitle}</div>
+        <div className="live-latency-timeline">
+          {checkpoints.length === 0 ? (
+            <div className="live-latency-empty">{text.noTurn}</div>
+          ) : (
+            checkpoints.map((checkpoint) => (
+              <div key={checkpoint.id} className="live-latency-checkpoint">
+                <span className="live-latency-checkpoint-label">
+                  {checkpoint.label}
+                </span>
+                <span className="live-latency-checkpoint-time">
+                  {checkpoint.time}
+                  {checkpoint.relative ? ` (${checkpoint.relative})` : ""}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
 
       <div className="live-latency-missing-hint">{text.missingHint}</div>
     </aside>
@@ -396,6 +488,13 @@ function formatDuration(valueMs: number | null): string {
   return `${(valueMs / 1000).toFixed(2)} s`;
 }
 
+function formatPing(valueMs: number | null): string {
+  if (valueMs === null) {
+    return "-";
+  }
+  return `${Math.round(valueMs)} ms`;
+}
+
 function formatSeconds(valueMs: number): string {
   return `${(valueMs / 1000).toFixed(2)}s`;
 }
@@ -407,6 +506,18 @@ function formatClock(timestamp: number): string {
   const seconds = String(date.getSeconds()).padStart(2, "0");
   const millis = String(date.getMilliseconds()).padStart(3, "0");
   return `${hours}:${minutes}:${seconds}.${millis}`;
+}
+
+function percentile(samples: number[], p: number): number | null {
+  if (samples.length === 0) {
+    return null;
+  }
+  if (samples.length === 1) {
+    return samples[0] ?? null;
+  }
+  const bounded = Math.min(1, Math.max(0, p));
+  const index = Math.ceil(samples.length * bounded) - 1;
+  return samples[Math.max(0, Math.min(samples.length - 1, index))] ?? null;
 }
 
 function shortenTurnId(turnId: string): string {

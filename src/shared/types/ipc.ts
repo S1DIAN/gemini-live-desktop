@@ -32,6 +32,7 @@ export interface ConnectPayload {
 export interface LiveBridgeApi {
   connect(payload?: ConnectPayload): Promise<{ ok: boolean; reason?: string }>;
   disconnect(mode?: DisconnectMode): Promise<void>;
+  probeNetworkLatency(): Promise<number | null>;
   sendTextMessage(
     text: string,
     hidden?: boolean,

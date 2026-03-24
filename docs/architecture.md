@@ -172,7 +172,7 @@ The worker does not own UI state or browser media capture.
 - `src/renderer/components/layout/Sidebar.tsx` owns the left navigation rail and pinned bottom locale switcher UI (`en`/`ru`).
 - `src/renderer/pages/*` compose page-level UI only.
 - `src/renderer/components/TranscriptPanel.tsx` renders the chat-style transcript feed, and `src/renderer/components/SessionControls.tsx` owns the bottom dock plus compact preview tiles.
-- `src/renderer/components/LiveLatencyPanel.tsx` derives per-turn latency checkpoints from diagnostics events and renders the optional call-page timing panel.
+- `src/renderer/components/LiveLatencyPanel.tsx` derives per-turn latency checkpoints from diagnostics events, renders per-turn latency breakdown metrics, and shows a separate network ping estimate (current and rolling median/p95) from a periodic main-process TCP probe to `generativelanguage.googleapis.com:443` exposed through live IPC.
 - `src/renderer/services/audio/*` owns local capture and playback control.
 - `src/renderer/services/media/*` owns screen and camera capture plus frame encoding.
 - `src/renderer/services/live/*` owns renderer-side live orchestration and proactivity tracking.
