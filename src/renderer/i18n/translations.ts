@@ -194,6 +194,7 @@ export interface TranslationDictionary {
       commentaryWhileIdleOnly: string;
       verboseLogging: string;
       exportPathHint: string;
+      showLiveTimingPanel: string;
     };
     options: {
       mediaResolution: {
@@ -442,7 +443,8 @@ export const translations: Record<Locale, TranslationDictionary> = {
         commentaryDuringSilenceOnly: "Commentary During Silence Only",
         commentaryWhileIdleOnly: "Commentary While User Idle Only",
         verboseLogging: "Verbose Logging",
-        exportPathHint: "Export Path Hint"
+        exportPathHint: "Export Path Hint",
+        showLiveTimingPanel: "Show Live Timing Panel"
       },
       options: {
         mediaResolution: {
@@ -693,7 +695,8 @@ export const translations: Record<Locale, TranslationDictionary> = {
         commentaryDuringSilenceOnly: "Комментарии только во время тишины",
         commentaryWhileIdleOnly: "Комментарии только при неактивности пользователя",
         verboseLogging: "Подробное логирование",
-        exportPathHint: "Подсказка пути экспорта"
+        exportPathHint: "Подсказка пути экспорта",
+        showLiveTimingPanel: "Показывать панель задержек в звонке"
       },
       options: {
         mediaResolution: {

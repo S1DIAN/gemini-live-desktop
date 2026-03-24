@@ -38,12 +38,12 @@ export function TranscriptPanel({ entries, composer }: TranscriptPanelProps) {
     () =>
       locale === "ru"
         ? {
-            thinkingCollapsed: "Думает...",
-            thinkingExpandHint: "Нажмите, чтобы раскрыть мысли",
-            historyTitle: "История чата",
-            closeHistory: "Закрыть",
-            openHistory: "Открыть историю",
-            waitingAnswer: "Ответ формируется..."
+            thinkingCollapsed: "Р”СѓРјР°РµС‚...",
+            thinkingExpandHint: "РќР°Р¶РјРёС‚Рµ, С‡С‚РѕР±С‹ СЂР°СЃРєСЂС‹С‚СЊ РјС‹СЃР»Рё",
+            historyTitle: "РСЃС‚РѕСЂРёСЏ С‡Р°С‚Р°",
+            closeHistory: "Р—Р°РєСЂС‹С‚СЊ",
+            openHistory: "РћС‚РєСЂС‹С‚СЊ РёСЃС‚РѕСЂРёСЋ",
+            waitingAnswer: "РћС‚РІРµС‚ С„РѕСЂРјРёСЂСѓРµС‚СЃСЏ..."
           }
         : {
             thinkingCollapsed: "Thinking...",
@@ -234,7 +234,7 @@ function truncateText(value: string, maxLength: number): string {
   if (value.length <= maxLength) {
     return value;
   }
-  return `${value.slice(0, maxLength - 1).trimEnd()}…`;
+  return `${value.slice(0, maxLength - 1).trimEnd()}вЂ¦`;
 }
 
 function combineModelEntries(entries: TranscriptEntry[]): DisplayMessage[] {

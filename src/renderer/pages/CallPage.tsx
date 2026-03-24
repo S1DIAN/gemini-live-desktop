@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { SessionControls } from "@renderer/components/SessionControls";
 import { TranscriptPanel } from "@renderer/components/TranscriptPanel";
+import { LiveLatencyPanel } from "@renderer/components/LiveLatencyPanel";
 import { useSessionStore } from "@renderer/state/sessionStore";
 import {
   areMediaControlsEnabled,
@@ -43,6 +44,7 @@ export function CallPage() {
   const settingsStore = useSettingsStore();
   const { copy } = useI18n();
   const transcriptEntries = useTranscriptStore((state) => state.entries);
+  const diagnosticsEvents = useDiagnosticsStore((state) => state.events);
   const appendDiagnostic = useDiagnosticsStore((state) => state.append);
   const screenPreviewRef = useRef<HTMLVideoElement>(null);
   const cameraPreviewRef = useRef<HTMLVideoElement>(null);
@@ -115,6 +117,8 @@ export function CallPage() {
       }) as CSSProperties,
     [orbLevel]
   );
+  const showLiveTimingPanel =
+    settingsStore.settings.diagnostics.showLiveTimingPanel;
 
   useEffect(() => {
     void liveClientAdapter.setVolume(settingsStore.settings.audio.modelVolume);
@@ -857,7 +861,9 @@ export function CallPage() {
         </div>
       ) : null}
 
-      <div className="call-workspace">
+      <div
+        className={`call-workspace${showLiveTimingPanel ? " has-side-panel" : ""}`}
+      >
         <div className="call-main-column">
           <section className="call-voice-stage" aria-hidden="true">
             <div
@@ -896,6 +902,17 @@ export function CallPage() {
             }
           />
         </div>
+        {showLiveTimingPanel ? (
+          <div className="call-side-column">
+            <LiveLatencyPanel
+              events={diagnosticsEvents}
+              sessionStatus={session.status}
+              waitingForInput={session.waitingForInput}
+              userSpeaking={session.userSpeaking}
+              modelSpeaking={session.modelSpeaking}
+            />
+          </div>
+        ) : null}
       </div>
 
       <SessionControls

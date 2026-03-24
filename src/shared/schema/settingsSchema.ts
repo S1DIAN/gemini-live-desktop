@@ -67,7 +67,8 @@ export const settingsSchema = z.object({
   }),
   diagnostics: z.object({
     enableVerboseLogging: z.boolean(),
-    exportPathHint: z.string()
+    exportPathHint: z.string(),
+    showLiveTimingPanel: z.boolean()
   })
 });
 

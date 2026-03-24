@@ -608,12 +608,20 @@ pre {
   min-height: 0;
 }
 
+.call-workspace.has-side-panel {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+}
+
 .call-main-column,
 .call-side-column,
 .call-preview-stack {
   display: grid;
   gap: 20px;
   min-height: 0;
+}
+
+.call-side-column {
+  align-content: start;
 }
 
 .call-mode-card {
@@ -1151,6 +1159,141 @@ pre {
   border: none;
   box-shadow: none;
   padding: 0;
+}
+
+.live-latency-panel {
+  display: grid;
+  gap: 10px;
+  max-height: calc(100vh - 260px);
+  overflow: auto;
+}
+
+.live-latency-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.live-latency-stage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.live-latency-stage-idle {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+.live-latency-stage-active {
+  background: var(--success-soft);
+  color: #bbf1cf;
+}
+
+.live-latency-stage-pending {
+  background: var(--warn-soft);
+  color: #ffdca0;
+}
+
+.live-latency-stage-done {
+  background: rgba(103, 167, 255, 0.16);
+  color: #d8ecff;
+}
+
+.live-latency-stage-warn {
+  background: var(--danger-soft);
+  color: #ffc3c3;
+}
+
+.live-latency-turn-id {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+}
+
+.live-latency-metrics {
+  display: grid;
+  gap: 8px;
+}
+
+.live-latency-metric-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.live-latency-metric-row strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.live-latency-divider {
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.live-latency-timeline-title {
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 700;
+}
+
+.live-latency-timeline {
+  display: grid;
+  gap: 8px;
+}
+
+.live-latency-checkpoint {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.live-latency-checkpoint-label {
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+}
+
+.live-latency-checkpoint-time {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.live-latency-empty {
+  padding: 10px;
+  border: 1px dashed var(--border-default);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.live-latency-missing-hint {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
 }
 
 .transcript-panel-body {

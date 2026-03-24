@@ -17,7 +17,7 @@ import { Switch } from "@renderer/components/ui/Switch";
 type SettingsSectionKey = "api" | "audio" | "visual" | "behavior" | "diagnostics";
 
 export function SettingsPage() {
-  const { settings, update, save, apiKeyState, setApiKey, clearApiKey } =
+  const { settings, update, apiKeyState, setApiKey, clearApiKey } =
     useSettingsStore();
   const { copy } = useI18n();
   const sessionStatus = useSessionStore((state) => state.status);
@@ -76,11 +76,6 @@ export function SettingsPage() {
         title={settingsCopy.title}
         subtitle="One focused section at a time. No long scrolling setup screen."
         meta="Workspace"
-        actions={
-          <button className="button-primary" onClick={() => void save()}>
-            {settingsCopy.saveSettings}
-          </button>
-        }
       />
 
       {sessionConfigLocked ? (
@@ -648,6 +643,20 @@ export function SettingsPage() {
           description="Verbose logging and export destination hints for support workflows."
         >
           <div className="settings-list">
+            <SettingsRow
+              label={settingsCopy.fields.showLiveTimingPanel}
+              control={
+                <Switch
+                  checked={settings.diagnostics.showLiveTimingPanel}
+                  onChange={(next) =>
+                    update((draft) => {
+                      draft.diagnostics.showLiveTimingPanel = next;
+                      return draft;
+                    })
+                  }
+                />
+              }
+            />
             <SettingsRow
               label={settingsCopy.fields.verboseLogging}
               control={

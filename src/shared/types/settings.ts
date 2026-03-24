@@ -68,6 +68,7 @@ export interface BehaviorSettings {
 export interface DiagnosticsSettings {
   enableVerboseLogging: boolean;
   exportPathHint: string;
+  showLiveTimingPanel: boolean;
 }
 
 export interface AppSettings {
@@ -131,7 +132,8 @@ export const defaultSettings: AppSettings = {
   },
   diagnostics: {
     enableVerboseLogging: true,
-    exportPathHint: ""
+    exportPathHint: "",
+    showLiveTimingPanel: false
   }
 };
 

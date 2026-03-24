@@ -50,7 +50,9 @@ The app is split into five runtime layers:
 ### Settings And Key Storage
 
 - The renderer edits settings through typed IPC.
+- Renderer settings updates are autosaved after local edits; there is no manual save action in the Settings UI.
 - `main` validates and persists settings in a versioned JSON file.
+- Diagnostics settings include an optional `showLiveTimingPanel` renderer toggle that enables an in-call side panel fed from diagnostics checkpoint events.
 - API version in settings is auto-derived (`v1alpha` for proactive or affective features, otherwise `v1beta`) during normalization and save.
 - Settings normalization performs a lightweight proactive-tuning migration for legacy defaults (`changeThreshold=0.22` -> `0.12`, `maxAutonomousCommentFrequencyMs=12000` -> `6000`) to reduce assisted commentary latency.
 - Settings normalization also applies legacy thinking migration so old persisted `thinkingBudget` values map into explicit thinking mode (`off`/`auto`/`custom`) without breaking existing installs.
@@ -90,6 +92,7 @@ The app is split into five runtime layers:
 - If renderer media message ports detach, the renderer requests new media transport ports and retries one delivery before surfacing a transport error and stopping the affected media control.
 - Renderer microphone capture listens for unexpected track-end and reports an explicit media failure path instead of leaving mic UI state stale.
 - If a stored microphone device ID is unavailable, renderer microphone capture retries on the system default input device to avoid dead input paths.
+- Renderer model-audio playback keeps PCM16 sample alignment across chunk boundaries (including odd-byte chunk splits), resets decoder carry state on turn boundaries, and keeps a short playback lead buffer to reduce underrun crackle.
 - The worker base64-encodes only at the final SDK boundary when building Gemini blobs.
 - Renderer sends sparse voice telemetry markers (`mic_*`, `vad_*`, playback markers, `turn_aborted`) through command IPC; worker correlates them with chunk upload and server/model events.
 - With Gemini Developer API automatic activity detection enabled, there is no explicit per-turn SDK commit call for microphone turns. `client_turn_commit_sent` is therefore a diagnostic name for the local renderer/worker handoff when VAD closes a turn, while `server_turn_ack_received` is the first correlatable server message for that turn.
@@ -169,6 +172,7 @@ The worker does not own UI state or browser media capture.
 - `src/renderer/components/layout/Sidebar.tsx` owns the left navigation rail and pinned bottom locale switcher UI (`en`/`ru`).
 - `src/renderer/pages/*` compose page-level UI only.
 - `src/renderer/components/TranscriptPanel.tsx` renders the chat-style transcript feed, and `src/renderer/components/SessionControls.tsx` owns the bottom dock plus compact preview tiles.
+- `src/renderer/components/LiveLatencyPanel.tsx` derives per-turn latency checkpoints from diagnostics events and renders the optional call-page timing panel.
 - `src/renderer/services/audio/*` owns local capture and playback control.
 - `src/renderer/services/media/*` owns screen and camera capture plus frame encoding.
 - `src/renderer/services/live/*` owns renderer-side live orchestration and proactivity tracking.

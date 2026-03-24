@@ -20,6 +20,8 @@ Windows-only Electron desktop client for Gemini Live with secure key handling, r
 - Pure and assisted proactive modes with capability normalization.
 - Thinking configuration with explicit `off` / `auto` / `custom` modes, budget range guidance, thought-summary toggle and thinking-level selection.
 - Worker lifecycle handling, reconnect support, and session resumption.
+- Settings edits are autosaved shortly after changes; no manual "Save Settings" action is required.
+- Optional live timing side panel on the Call page, driven by diagnostics checkpoint events for quick latency breakdowns.
 
 ## Tech Stack
 
@@ -69,13 +71,14 @@ npm run dist:win
 
 1. Start the app.
 2. Open Settings and save a Gemini API key.
-3. Configure model, voice, thinking mode (`off`/`auto`/`custom`), devices, visual settings, behavior, and diagnostics options.
-4. Return to the Call page and connect a live session.
-5. Enable microphone, camera, and screen capture as needed.
-6. Use realtime controls while connected.
-7. Use `Pause` to keep resumable state; use `Disconnect` for a full reset.
-8. Change connect-time options only after disconnect, then reconnect.
-9. Monitor transcript, diagnostics, and proactive decisions in real time.
+3. Configure model, voice, thinking mode (`off`/`auto`/`custom`), devices, visual settings, behavior, and diagnostics options (changes are autosaved).
+4. Optionally enable `Show Live Timing Panel` in Diagnostics settings to surface per-turn latency checkpoints on the Call page.
+5. Return to the Call page and connect a live session.
+6. Enable microphone, camera, and screen capture as needed.
+7. Use realtime controls while connected.
+8. Use `Pause` to keep resumable state; use `Disconnect` for a full reset.
+9. Change connect-time options only after disconnect, then reconnect.
+10. Monitor transcript, diagnostics, proactive decisions, and optional live timing metrics in real time.
 
 ## Security
 

@@ -1,4 +1,8 @@
 import { PlaybackQueue } from "./playbackQueue";
+import { parsePcmSampleRate, Pcm16ChunkDecoder } from "./pcm16ChunkDecoder";
+
+const LIVE_OUTPUT_SAMPLE_RATE = 24000;
+const MIN_PLAYBACK_LEAD_SECONDS = 0.03;
 
 interface PlaybackCallbacks {
   onPlaybackStarted?: (payload: {
@@ -36,13 +40,22 @@ export class AudioOutputController {
   private activePlaybackTurnId: string | null = null;
   private activePlaybackStartedAt: number | null = null;
   private outputDevice = "default";
+  private decoder = new Pcm16ChunkDecoder();
+  private decoderTurnId: string | null = null;
 
   async initialize(): Promise<void> {
     if (this.context) {
       return;
     }
 
-    this.context = new AudioContext();
+    try {
+      this.context = new AudioContext({
+        sampleRate: LIVE_OUTPUT_SAMPLE_RATE,
+        latencyHint: "playback"
+      });
+    } catch {
+      this.context = new AudioContext({ latencyHint: "playback" });
+    }
     this.gainNode = this.context.createGain();
     this.mediaDestination = this.context.createMediaStreamDestination();
     this.gainNode.connect(this.mediaDestination);
@@ -101,6 +114,8 @@ export class AudioOutputController {
     }
     this.activePlaybackTurnId = null;
     this.activePlaybackStartedAt = null;
+    this.decoder.reset();
+    this.decoderTurnId = null;
   }
 
   private flush(): void {
@@ -109,8 +124,17 @@ export class AudioOutputController {
     }
 
     for (const item of this.queue.drain()) {
-      const sampleRate = parseSampleRate(item.mimeType) ?? 24000;
-      const pcm = decodePcm16(item.bytes);
+      if (item.turnId && this.decoderTurnId && this.decoderTurnId !== item.turnId) {
+        this.decoder.reset();
+      }
+      if (item.turnId) {
+        this.decoderTurnId = item.turnId;
+      }
+      const sampleRate = parsePcmSampleRate(item.mimeType) ?? LIVE_OUTPUT_SAMPLE_RATE;
+      const pcm = this.decoder.decode(item.bytes);
+      if (pcm.length === 0) {
+        continue;
+      }
       const buffer = this.context.createBuffer(1, pcm.length, sampleRate);
       buffer.getChannelData(0).set(pcm);
 
@@ -123,7 +147,10 @@ export class AudioOutputController {
       };
       this.activeSources.add(source);
 
-      const startAt = Math.max(this.context.currentTime, this.scheduledTime);
+      const startAt = Math.max(
+        this.context.currentTime + MIN_PLAYBACK_LEAD_SECONDS,
+        this.scheduledTime
+      );
       if (item.turnId && this.activePlaybackTurnId !== item.turnId) {
         this.activePlaybackTurnId = item.turnId;
         this.activePlaybackStartedAt = Date.now();
@@ -167,18 +194,4 @@ export class AudioOutputController {
     this.activePlaybackTurnId = null;
     this.activePlaybackStartedAt = null;
   }
-}
-
-function parseSampleRate(mimeType: string): number | null {
-  const match = /rate=(\d+)/i.exec(mimeType);
-  return match ? Number(match[1]) : null;
-}
-
-function decodePcm16(bytes: Uint8Array): Float32Array {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const output = new Float32Array(bytes.byteLength / 2);
-  for (let index = 0; index < output.length; index += 1) {
-    output[index] = view.getInt16(index * 2, true) / 32768;
-  }
-  return output;
 }
