@@ -7,4 +7,6 @@ export interface TranscriptEntry {
   text: string;
   status: TranscriptStatus;
   createdAt: number;
+  thought?: boolean;
+  thoughtSignature?: string;
 }

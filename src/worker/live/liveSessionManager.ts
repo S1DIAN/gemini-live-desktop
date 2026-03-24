@@ -302,7 +302,9 @@ export class LiveSessionManager {
   private pendingProactiveTriggers: number[] = [];
   private autonomousResponseActive = false;
   private modelTranscriptBuffers = new Map<string, string>();
+  private modelThoughtBuffers = new Map<string, string>();
   private autonomousModelTranscriptBuffer = "";
+  private autonomousModelThoughtBuffer = "";
   private responseStartTypeCounts: Record<
     "reactive_user_turn" | "autonomous_proactive" | "unknown",
     number
@@ -329,7 +331,9 @@ export class LiveSessionManager {
     this.pendingProactiveTriggers = [];
     this.autonomousResponseActive = false;
     this.modelTranscriptBuffers.clear();
+    this.modelThoughtBuffers.clear();
     this.autonomousModelTranscriptBuffer = "";
+    this.autonomousModelThoughtBuffer = "";
     this.responseStartTypeCounts = {
       reactive_user_turn: 0,
       autonomous_proactive: 0,
@@ -370,7 +374,9 @@ export class LiveSessionManager {
     this.pendingProactiveTriggers = [];
     this.autonomousResponseActive = false;
     this.modelTranscriptBuffers.clear();
+    this.modelThoughtBuffers.clear();
     this.autonomousModelTranscriptBuffer = "";
+    this.autonomousModelThoughtBuffer = "";
     this.clearUserSpeechActivity();
     this.emitState("disconnecting");
     this.adapter?.signalAudioStreamEnd();
@@ -614,6 +620,7 @@ export class LiveSessionManager {
           : "audio"
         : "text";
       const modelTextChunk = extractModelTextChunk(serverContent);
+      const modelThoughtChunk = extractModelThoughtChunk(serverContent);
       if (modelTextChunk) {
         if (responseTurnId) {
           this.appendModelTranscriptChunk(responseTurnId, modelTextChunk);
@@ -621,6 +628,16 @@ export class LiveSessionManager {
           this.autonomousModelTranscriptBuffer = mergeTranscriptChunk(
             this.autonomousModelTranscriptBuffer,
             modelTextChunk
+          );
+        }
+      }
+      if (modelThoughtChunk) {
+        if (responseTurnId) {
+          this.appendModelThoughtChunk(responseTurnId, modelThoughtChunk);
+        } else {
+          this.autonomousModelThoughtBuffer = mergeTranscriptChunk(
+            this.autonomousModelThoughtBuffer,
+            modelThoughtChunk
           );
         }
       }
@@ -721,6 +738,7 @@ export class LiveSessionManager {
       }
 
       if ((serverContent?.generationComplete || serverContent?.turnComplete) && responseTurnId) {
+        this.flushTurnModelThought(responseTurnId, receivedAt);
         this.flushTurnModelTranscript(responseTurnId, receivedAt);
         const turn = this.ensureTurnContext(responseTurnId);
         if (!turn.modelResponseCompletedAt) {
@@ -749,6 +767,7 @@ export class LiveSessionManager {
         (serverContent?.generationComplete || serverContent?.turnComplete) &&
         !responseTurnId
       ) {
+        this.flushAutonomousModelThought(receivedAt);
         this.flushAutonomousModelTranscript(receivedAt);
         this.autonomousResponseActive = false;
       }
@@ -808,7 +827,9 @@ export class LiveSessionManager {
         this.pendingProactiveTriggers = [];
         this.autonomousResponseActive = false;
         this.modelTranscriptBuffers.clear();
+        this.modelThoughtBuffers.clear();
         this.autonomousModelTranscriptBuffer = "";
+        this.autonomousModelThoughtBuffer = "";
         return;
       }
 
@@ -1164,7 +1185,9 @@ export class LiveSessionManager {
     this.pendingProactiveTriggers = [];
     this.autonomousResponseActive = false;
     this.modelTranscriptBuffers.clear();
+    this.modelThoughtBuffers.clear();
     this.autonomousModelTranscriptBuffer = "";
+    this.autonomousModelThoughtBuffer = "";
   }
 
   private appendModelTranscriptChunk(turnId: string, chunk: string): void {
@@ -1172,12 +1195,36 @@ export class LiveSessionManager {
     this.modelTranscriptBuffers.set(turnId, mergeTranscriptChunk(previous, chunk));
   }
 
-  private flushTurnModelTranscript(turnId: string, timestamp: number): void {
-    const text = (this.modelTranscriptBuffers.get(turnId) ?? "").trim();
+  private appendModelThoughtChunk(turnId: string, chunk: string): void {
+    const previous = this.modelThoughtBuffers.get(turnId) ?? "";
+    this.modelThoughtBuffers.set(turnId, mergeTranscriptChunk(previous, chunk));
+  }
+
+  private flushTurnModelThought(turnId: string, timestamp: number): void {
+    const text = (this.modelThoughtBuffers.get(turnId) ?? "").trim();
+    this.modelThoughtBuffers.delete(turnId);
     if (!text) {
       return;
     }
+    this.emit({
+      type: "transcript",
+      payload: {
+        id: crypto.randomUUID(),
+        speaker: "model",
+        text,
+        status: "final",
+        createdAt: timestamp,
+        thought: true
+      }
+    });
+  }
+
+  private flushTurnModelTranscript(turnId: string, timestamp: number): void {
+    const text = (this.modelTranscriptBuffers.get(turnId) ?? "").trim();
     this.modelTranscriptBuffers.delete(turnId);
+    if (!text) {
+      return;
+    }
     this.emit({
       type: "transcript",
       payload: {
@@ -1192,10 +1239,10 @@ export class LiveSessionManager {
 
   private flushAutonomousModelTranscript(timestamp: number): void {
     const text = this.autonomousModelTranscriptBuffer.trim();
+    this.autonomousModelTranscriptBuffer = "";
     if (!text) {
       return;
     }
-    this.autonomousModelTranscriptBuffer = "";
     this.emit({
       type: "transcript",
       payload: {
@@ -1204,6 +1251,25 @@ export class LiveSessionManager {
         text,
         status: "final",
         createdAt: timestamp
+      }
+    });
+  }
+
+  private flushAutonomousModelThought(timestamp: number): void {
+    const text = this.autonomousModelThoughtBuffer.trim();
+    this.autonomousModelThoughtBuffer = "";
+    if (!text) {
+      return;
+    }
+    this.emit({
+      type: "transcript",
+      payload: {
+        id: crypto.randomUUID(),
+        speaker: "model",
+        text,
+        status: "final",
+        createdAt: timestamp,
+        thought: true
       }
     });
   }
@@ -1282,7 +1348,24 @@ function extractModelTextChunk(
   }
   return (
     serverContent.modelTurn?.parts
-      ?.map((part) => part.text?.trim() ?? "")
+      ?.filter((part) => !part.thought)
+      .map((part) => part.text?.trim() ?? "")
+      .filter(Boolean)
+      .join(" ")
+      .trim() ?? ""
+  );
+}
+
+function extractModelThoughtChunk(
+  serverContent: LiveServerMessage["serverContent"] | undefined
+): string {
+  if (!serverContent) {
+    return "";
+  }
+  return (
+    serverContent.modelTurn?.parts
+      ?.filter((part) => Boolean(part.thought))
+      .map((part) => part.text?.trim() ?? "")
       .filter(Boolean)
       .join(" ")
       .trim() ?? ""

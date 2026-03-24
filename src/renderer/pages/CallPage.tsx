@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { SessionControls } from "@renderer/components/SessionControls";
 import { TranscriptPanel } from "@renderer/components/TranscriptPanel";
 import { useSessionStore } from "@renderer/state/sessionStore";
@@ -66,6 +66,54 @@ export function CallPage() {
   const mediaControlsEnabled = useMemo(
     () => areMediaControlsEnabled(session.status),
     [session.status]
+  );
+  const orbIsIdle =
+    session.status === "idle" || session.status === "disconnected" || session.status === "error";
+  const orbIsConnecting = session.status === "connecting";
+  const liveSessionActive =
+    session.status === "connected" ||
+    session.status === "reconnecting" ||
+    session.status === "disconnecting";
+  const orbIsSpeaking = session.modelSpeaking;
+  const orbLevel = useMemo(() => {
+    if (orbIsIdle) {
+      return 0;
+    }
+    if (orbIsConnecting) {
+      return 0.6;
+    }
+    if (orbIsSpeaking) {
+      return 1;
+    }
+    if (session.playbackActive) {
+      return 0.72;
+    }
+    if (session.userSpeaking) {
+      return Math.max(0.24, Math.min(0.56, session.micLevel * 6.5));
+    }
+    if (session.micEnabled) {
+      return Math.max(0.2, Math.min(0.46, session.micLevel * 5.4));
+    }
+    if (liveSessionActive) {
+      return 0.28;
+    }
+    return 0;
+  }, [
+    orbIsConnecting,
+    orbIsIdle,
+    orbIsSpeaking,
+    liveSessionActive,
+    session.micEnabled,
+    session.micLevel,
+    session.playbackActive,
+    session.userSpeaking
+  ]);
+  const orbStyle = useMemo(
+    () =>
+      ({
+        "--orb-level": orbLevel.toFixed(3)
+      }) as CSSProperties,
+    [orbLevel]
   );
 
   useEffect(() => {
@@ -392,6 +440,8 @@ export function CallPage() {
       throw disconnectError;
     }
 
+    useTranscriptStore.getState().clear();
+    setText("");
     setActionMessage({
       tone: "success",
       text: copy.callPage.messages.disconnectedReset
@@ -799,7 +849,7 @@ export function CallPage() {
 
   return (
     <section className="page call-page">
-      <PageHeader title={copy.callPage.pageTitle} meta={copy.callPage.pageMeta} />
+      <PageHeader title={copy.callPage.pageTitle} />
 
       {actionMessage?.tone === "error" ? (
         <div className={`feedback-banner feedback-${actionMessage.tone}`}>
@@ -809,28 +859,40 @@ export function CallPage() {
 
       <div className="call-workspace">
         <div className="call-main-column">
+          <section className="call-voice-stage" aria-hidden="true">
+            <div
+              className={`voice-orb${liveSessionActive ? " is-live" : ""}${
+                orbIsConnecting ? " is-connecting" : ""
+              }${orbIsSpeaking ? " is-speaking" : ""}${orbIsIdle ? " is-idle" : ""}`}
+              style={orbStyle}
+            >
+              <div className="voice-orb-bars">
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
+            </div>
+          </section>
           <TranscriptPanel
             entries={transcriptEntries}
             composer={
-              <>
+              <div className="transcript-composer">
                 <textarea
                   value={text}
                   onChange={(event) => setText(event.target.value)}
                   placeholder={copy.callPage.manualTextPlaceholder}
                   disabled={connectionBusy}
                 />
-                <div className="composer-actions">
-                  <button
-                    className="button-secondary"
-                    onClick={() => useTranscriptStore.getState().clear()}
-                  >
-                    {copy.callPage.clearTranscript}
-                  </button>
-                  <button className="button-primary" onClick={() => void onSendText()}>
-                    {copy.callPage.sendText}
-                  </button>
-                </div>
-              </>
+                <button
+                  className="button-primary"
+                  onClick={() => void onSendText()}
+                  disabled={connectionBusy || text.trim().length === 0}
+                >
+                  {copy.callPage.sendText}
+                </button>
+              </div>
             }
           />
         </div>

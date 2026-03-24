@@ -26,7 +26,9 @@ export const transcriptEntrySchema = z.object({
   speaker: z.enum(["user", "model", "system"]),
   text: z.string(),
   status: z.enum(["partial", "final"]),
-  createdAt: z.number()
+  createdAt: z.number(),
+  thought: z.boolean().optional(),
+  thoughtSignature: z.string().optional()
 });
 
 export const sessionStateSchema = z.object({

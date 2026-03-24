@@ -11,10 +11,11 @@ Windows-only Electron desktop client for Gemini Live with secure key handling, r
 - Encrypted Gemini API key storage in the main process.
 - Microphone, camera, and screen capture with binary worker transport.
 - Turn latency telemetry, diagnostics export, and turn-final model transcript rendering.
+- Turn-final model transcript rendering with API-native thought metadata (`thought`) for collapsible "thinking" UI.
 - Chat-style transcript with compact dock-anchored camera/screen previews.
 - Dock-level quick AI settings panel (gear) for model, voice, assistant mode and thinking controls.
 - Sidebar language switcher (`English`/`Russian`) remains pinned at the bottom of the left column.
-- `Pause` preserves resumable session state; `Disconnect` resets session state.
+- `Pause` preserves resumable session state; `Disconnect` resets session state and clears renderer chat history.
 - English and Russian UI with runtime switching.
 - Pure and assisted proactive modes with capability normalization.
 - Thinking configuration with explicit `off` / `auto` / `custom` modes, budget range guidance, thought-summary toggle and thinking-level selection.

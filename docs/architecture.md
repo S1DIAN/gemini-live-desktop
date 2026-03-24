@@ -37,12 +37,13 @@ The app is split into five runtime layers:
 - Renderer session controls must expose immediate inline UX feedback for pending, success and failure states independently of the Diagnostics page.
 - Session teardown must support two explicit modes:
   - `pause`: close transport while preserving resumable state for reconnecting to the same live chat.
-  - `terminate`: close transport and clear resumable state so the next connect starts a new live session.
+  - `terminate`: close transport and clear resumable state so the next connect starts a new live session; renderer transcript history is cleared immediately on successful terminate.
 - Renderer route navigation must not implicitly stop active local media capture; mic/camera/screen are runtime session controls and change only through explicit toggles or terminal session-state teardown.
 - Connect-time setup controls in the renderer are locked during active live session states (`connecting`, `connected`, `reconnecting`, `disconnecting`) and while paused session continuation is retained; realtime renderer tuning remains editable.
 - Renderer language switching controls a connect-time speech-language override (`speechConfig.languageCode`) for the next connect; it must not force reconnect during an active session.
 - Selected renderer locale is stored in browser localStorage and applied immediately across all routes; it is only turned into a speech-language override on the next connect.
 - Model transcript events emitted to the renderer chat must be turn-final only (`generationComplete`/`turnComplete`) to prevent chunked model bubbles.
+- Model transcript events may include API-native thought metadata (`thought`, optional `thoughtSignature`) derived from Gemini `Part.thought`/`Part.thoughtSignature` for collapsible thinking UI.
 
 ## Runtime Data Flow
 
@@ -84,7 +85,7 @@ The app is split into five runtime layers:
 - The renderer captures screen and camera locally, downsizes frames, encodes them to JPEG, and sends binary frame payloads through a message channel with `latest-frame-wins`; the worker forwards those frames via `sendRealtimeInput.video`.
 - In assisted proactive mode, screen-diff evaluation and hidden hint decisions are applied only after the corresponding frame send attempt completes, keeping proactive commentary aligned to the latest delivered frame.
 - Worker forwards renderer proactive hidden hints via `sendRealtimeInput.text` so proactive trigger text follows the realtime media path.
-- Worker buffers model transcription chunks and emits a single final model chat message only after turn completion.
+- Worker buffers model transcription chunks and thought chunks separately, and emits final model chat messages only after turn completion. Thought messages are tagged with transcript metadata (`thought=true`).
 - When microphone capture is paused or session teardown starts, the renderer emits a pause telemetry event and the worker sends `sendRealtimeInput({ audioStreamEnd: true })` to flush pending audio on the Live API side.
 - If renderer media message ports detach, the renderer requests new media transport ports and retries one delivery before surfacing a transport error and stopping the affected media control.
 - Renderer microphone capture listens for unexpected track-end and reports an explicit media failure path instead of leaving mic UI state stale.
