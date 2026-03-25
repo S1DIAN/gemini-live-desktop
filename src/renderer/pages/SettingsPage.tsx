@@ -13,6 +13,7 @@ import { PageHeader } from "@renderer/components/layout/PageHeader";
 import { SectionCard } from "@renderer/components/layout/SectionCard";
 import { SettingsRow } from "@renderer/components/layout/SettingsRow";
 import { Switch } from "@renderer/components/ui/Switch";
+import { VoicePreviewButton } from "@renderer/components/VoicePreviewButton";
 
 type SettingsSectionKey = "api" | "audio" | "visual" | "behavior" | "diagnostics";
 
@@ -167,22 +168,44 @@ export function SettingsPage() {
             <SettingsRow
               label={settingsCopy.fields.voice}
               control={
-                <select
+                <div className="voice-preview-control">
+                  <select
+                    disabled={sessionConfigLocked}
+                    value={settings.api.voiceName}
+                    onChange={(event) =>
+                      update((draft) => {
+                        draft.api.voiceName = event.target.value;
+                        return draft;
+                      })
+                    }
+                  >
+                    {voiceOptions.map((voiceName) => (
+                      <option key={voiceName} value={voiceName}>
+                        {voiceName}
+                      </option>
+                    ))}
+                  </select>
+                  <VoicePreviewButton
+                    voiceName={settings.api.voiceName}
+                    disabled={sessionConfigLocked}
+                  />
+                </div>
+              }
+            />
+            <SettingsRow
+              label={settingsCopy.fields.allowInterruption}
+              description={settingsCopy.fields.allowInterruptionHelp}
+              control={
+                <Switch
+                  checked={settings.api.allowInterruption}
                   disabled={sessionConfigLocked}
-                  value={settings.api.voiceName}
-                  onChange={(event) =>
+                  onChange={(next) =>
                     update((draft) => {
-                      draft.api.voiceName = event.target.value;
+                      draft.api.allowInterruption = next;
                       return draft;
                     })
                   }
-                >
-                  {voiceOptions.map((voiceName) => (
-                    <option key={voiceName} value={voiceName}>
-                      {voiceName}
-                    </option>
-                  ))}
-                </select>
+                />
               }
             />
             <SettingsRow
@@ -598,6 +621,31 @@ export function SettingsPage() {
                     update((draft) => {
                       draft.behavior.maxAutonomousCommentFrequencyMs = Number(
                         event.target.value
+                      );
+                      return draft;
+                    })
+                  }
+                />
+              }
+            />
+            <SettingsRow
+              label={settingsCopy.fields.requiredSignificantFrames}
+              description={settingsCopy.fields.requiredSignificantFramesHelp}
+              control={
+                <input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={settings.behavior.requiredSignificantFrames}
+                  onChange={(event) =>
+                    update((draft) => {
+                      const parsed = Number(event.target.value);
+                      if (!Number.isFinite(parsed)) {
+                        return draft;
+                      }
+                      draft.behavior.requiredSignificantFrames = Math.max(
+                        1,
+                        Math.min(12, Math.round(parsed))
                       );
                       return draft;
                     })

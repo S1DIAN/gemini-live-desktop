@@ -95,6 +95,7 @@ export function normalizeConnectRequest(
     model: requested.model,
     apiVersion,
     voiceName: requested.voiceName,
+    allowInterruption: requested.allowInterruption,
     speechLanguageCode: explicitSpeechLanguageCode,
     proactiveMode: requested.proactiveMode,
     thinkingMode: requested.thinkingMode,
@@ -157,6 +158,13 @@ export function normalizeConnectRequest(
       field: "mediaResolution",
       action: "kept",
       reason: `media resolution set to ${requested.mediaResolution}`
+    },
+    {
+      field: "realtimeInputConfig.activityHandling",
+      action: "kept",
+      reason: requested.allowInterruption
+        ? "model response can be interrupted by start of user activity"
+        : "model response interruption is disabled"
     },
     {
       field: "realtimeInput.automaticActivityDetection",

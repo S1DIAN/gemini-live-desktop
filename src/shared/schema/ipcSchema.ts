@@ -14,6 +14,11 @@ export const saveApiKeyPayloadSchema = z.object({
   apiKey: z.string().min(1)
 });
 
+export const previewVoicePayloadSchema = z.object({
+  voiceName: z.string().min(1),
+  speechLanguageCode: z.enum(["en", "ru"]).optional()
+});
+
 export const sendTextPayloadSchema = z.object({
   text: z.string().min(1),
   hidden: z.boolean().default(false),

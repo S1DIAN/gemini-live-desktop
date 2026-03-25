@@ -147,7 +147,9 @@ class GeminiLiveAdapter implements LiveAdapter {
                 silenceDurationMs: this.effectiveConfig.snapshot.silenceDurationMs
               }
             : undefined,
-        activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
+        activityHandling: this.effectiveConfig.snapshot.allowInterruption
+          ? ActivityHandling.START_OF_ACTIVITY_INTERRUPTS
+          : ActivityHandling.NO_INTERRUPTION,
         turnCoverage: TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY
       }
     };

@@ -54,6 +54,7 @@ export const sessionStateSchema = z.object({
       model: z.string(),
       apiVersion: z.enum(["v1beta", "v1alpha"]),
       voiceName: z.string(),
+      allowInterruption: z.boolean(),
       speechLanguageCode: z.enum(LIVE_SPEECH_LANGUAGE_CODES).optional(),
       proactiveMode: z.enum(["off", "pure", "assisted"]),
       thinkingMode: z.enum(["off", "auto", "custom"]),

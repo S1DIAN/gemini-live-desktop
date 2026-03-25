@@ -168,6 +168,8 @@ export interface TranslationDictionary {
       apiVersionAuto: string;
       apiVersionHelp: string;
       voice: string;
+      allowInterruption: string;
+      allowInterruptionHelp: string;
       thinkingMode: string;
       thinkingModeHelp: string;
       thinkingBudget: string;
@@ -190,6 +192,8 @@ export interface TranslationDictionary {
       systemPrompt: string;
       proactivePolicy: string;
       maxAutonomousFrequencyMs: string;
+      requiredSignificantFrames: string;
+      requiredSignificantFramesHelp: string;
       commentaryDuringSilenceOnly: string;
       commentaryWhileIdleOnly: string;
       verboseLogging: string;
@@ -215,6 +219,11 @@ export interface TranslationDictionary {
         medium: string;
         high: string;
       };
+    };
+    voicePreview: {
+      play: string;
+      pause: string;
+      loading: string;
     };
     saveSettings: string;
   };
@@ -416,6 +425,9 @@ export const translations: Record<Locale, TranslationDictionary> = {
         apiVersionHelp:
           "Auto rule: v1alpha is used when Proactive Mode is not off or Affective Dialog is enabled.",
         voice: "Voice",
+        allowInterruption: "Allow Interruption",
+        allowInterruptionHelp:
+          "When enabled, your speech can interrupt model playback. When disabled, model playback continues until it ends.",
         thinkingMode: "Thinking Mode",
         thinkingModeHelp:
           "Off disables reasoning. Auto lets the model decide. Custom lets you set a budget manually.",
@@ -440,6 +452,9 @@ export const translations: Record<Locale, TranslationDictionary> = {
         systemPrompt: "System Prompt",
         proactivePolicy: "Proactive Policy",
         maxAutonomousFrequencyMs: "Max Autonomous Frequency (ms)",
+        requiredSignificantFrames: "Significant Frames Before Comment",
+        requiredSignificantFramesHelp:
+          "How many consecutive frames must exceed the change threshold before an autonomous comment is allowed.",
         commentaryDuringSilenceOnly: "Commentary During Silence Only",
         commentaryWhileIdleOnly: "Commentary While User Idle Only",
         verboseLogging: "Verbose Logging",
@@ -469,6 +484,11 @@ export const translations: Record<Locale, TranslationDictionary> = {
           medium: "Medium",
           high: "High"
         }
+      },
+      voicePreview: {
+        play: "Play",
+        pause: "Pause",
+        loading: "Loading..."
       },
       saveSettings: "Save Settings"
     }
@@ -668,6 +688,9 @@ export const translations: Record<Locale, TranslationDictionary> = {
         apiVersionHelp:
           "Автоправило: используется v1alpha, если проактивный режим не выключен или включён аффективный диалог.",
         voice: "Голос",
+        allowInterruption: "Разрешить перебивание",
+        allowInterruptionHelp:
+          "Если включено, начало вашей речи может прервать ответ модели. Если выключено, модель договаривает ответ до конца.",
         thinkingMode: "Режим размышления",
         thinkingModeHelp:
           "Выкл отключает размышление. Авто отдаёт выбор модели. Custom позволяет задать бюджет вручную.",
@@ -692,6 +715,9 @@ export const translations: Record<Locale, TranslationDictionary> = {
         systemPrompt: "Системный промпт",
         proactivePolicy: "Политика проактивных комментариев",
         maxAutonomousFrequencyMs: "Макс. частота автономных комментариев (мс)",
+        requiredSignificantFrames: "Значимых кадров до комментария",
+        requiredSignificantFramesHelp:
+          "Сколько последовательных кадров должны превысить порог изменений, прежде чем разрешён автономный комментарий.",
         commentaryDuringSilenceOnly: "Комментарии только во время тишины",
         commentaryWhileIdleOnly: "Комментарии только при неактивности пользователя",
         verboseLogging: "Подробное логирование",
@@ -721,6 +747,11 @@ export const translations: Record<Locale, TranslationDictionary> = {
           medium: "Средний",
           high: "Высокий"
         }
+      },
+      voicePreview: {
+        play: "Слушать",
+        pause: "Пауза",
+        loading: "Загрузка..."
       },
       saveSettings: "Сохранить настройки"
     }

@@ -14,6 +14,8 @@ Windows-only Electron desktop client for Gemini Live with secure key handling, r
 - Turn-final model transcript rendering with API-native thought metadata (`thought`) for collapsible "thinking" UI.
 - Chat-style transcript with compact dock-anchored camera/screen previews.
 - Dock-level quick AI settings panel (gear) for model, voice, assistant mode and thinking controls.
+- Voice selector includes inline `Play`/`Pause` preview for the currently selected prebuilt voice without starting a Live session.
+- Connect-time interruption control (`Allow Interruption`) to choose whether user speech can cut off model audio responses.
 - Sidebar language switcher (`English`/`Russian`) remains pinned at the bottom of the left column.
 - `Pause` preserves resumable session state; `Disconnect` resets session state and clears renderer chat history.
 - English and Russian UI with runtime switching.
@@ -22,6 +24,8 @@ Windows-only Electron desktop client for Gemini Live with secure key handling, r
 - Worker lifecycle handling, reconnect support, and session resumption.
 - Settings edits are autosaved shortly after changes; no manual "Save Settings" action is required.
 - Optional live timing side panel on the Call page, driven by diagnostics checkpoint events for quick latency breakdowns plus a network ping estimate from periodic TCP probe to Gemini API endpoint (`generativelanguage.googleapis.com:443`).
+- In proactive assistant modes (`pure`/`assisted`), while model audio is playing, visual frame upload is temporarily deferred (with a short resume delay) so proactive commentary avoids overlapping turn cascades.
+- Proactive commentary behavior includes configurable cooldown (`Max Autonomous Frequency`) and required significant-frame streak (`Significant Frames Before Comment`) to reduce noisy/autonomous chatter.
 
 ## Tech Stack
 
@@ -71,14 +75,15 @@ npm run dist:win
 
 1. Start the app.
 2. Open Settings and save a Gemini API key.
-3. Configure model, voice, thinking mode (`off`/`auto`/`custom`), devices, visual settings, behavior, and diagnostics options (changes are autosaved).
-4. Optionally enable `Show Live Timing Panel` in Diagnostics settings to surface per-turn latency checkpoints on the Call page.
-5. Return to the Call page and connect a live session.
-6. Enable microphone, camera, and screen capture as needed.
-7. Use realtime controls while connected.
-8. Use `Pause` to keep resumable state; use `Disconnect` for a full reset.
-9. Change connect-time options only after disconnect, then reconnect.
-10. Monitor transcript, diagnostics, proactive decisions, and optional live timing metrics in real time.
+3. Configure model, voice, interruption behavior (`Allow Interruption`), thinking mode (`off`/`auto`/`custom`), devices, visual settings, behavior (including proactive cooldown and significant-frame streak), and diagnostics options (changes are autosaved).
+4. Optionally use `Play`/`Pause` next to `Voice` to preview the selected prebuilt voice (short TTS sample, no Live connect required).
+5. Optionally enable `Show Live Timing Panel` in Diagnostics settings to surface per-turn latency checkpoints on the Call page.
+6. Return to the Call page and connect a live session.
+7. Enable microphone, camera, and screen capture as needed.
+8. Use realtime controls while connected.
+9. Use `Pause` to keep resumable state; use `Disconnect` for a full reset.
+10. Change connect-time options only after disconnect, then reconnect.
+11. Monitor transcript, diagnostics, proactive decisions, and optional live timing metrics in real time.
 
 ## Security
 

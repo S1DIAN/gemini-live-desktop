@@ -25,6 +25,7 @@ const audioController = new AudioInputController();
 const screenController = new ScreenCaptureController();
 const cameraController = new CameraCaptureController();
 const proactive = new ProactiveOrchestrator();
+const VISUAL_FRAME_RESUME_DELAY_MS = 1200;
 
 interface LocalVoiceTurnState {
   turnId: string;
@@ -60,6 +61,7 @@ export function CallPage() {
   const chunkSequence = useRef(0);
   const frameSequence = useRef(0);
   const activeVoiceTurn = useRef<LocalVoiceTurnState | null>(null);
+  const visualFrameResumeAt = useRef(0);
 
   const connectionBusy = useMemo(
     () => isConnectionBusy(session.status),
@@ -350,7 +352,22 @@ export function CallPage() {
     }
   }
 
+  function shouldDeferVisualFrame(frameTimestamp: number): boolean {
+    const proactiveMode = settingsStore.settings.api.proactiveMode;
+    if (proactiveMode === "off") {
+      return false;
+    }
+    const currentSession = useSessionStore.getState();
+    if (currentSession.modelSpeaking || currentSession.playbackActive) {
+      visualFrameResumeAt.current =
+        frameTimestamp + VISUAL_FRAME_RESUME_DELAY_MS;
+      return true;
+    }
+    return frameTimestamp < visualFrameResumeAt.current;
+  }
+
   async function onConnect() {
+    visualFrameResumeAt.current = 0;
     setActionMessage({
       tone: "info",
       text: copy.callPage.messages.connecting
@@ -393,6 +410,7 @@ export function CallPage() {
   }
 
   async function onPause() {
+    visualFrameResumeAt.current = 0;
     setActionMessage({
       tone: "info",
       text: copy.callPage.messages.pausing
@@ -424,6 +442,7 @@ export function CallPage() {
   }
 
   async function onTerminate() {
+    visualFrameResumeAt.current = 0;
     setActionMessage({
       tone: "info",
       text: copy.callPage.messages.disconnecting
@@ -638,6 +657,9 @@ export function CallPage() {
         ? screenPreviewRef.current
         : null,
       onFrame: async (bytes, width, height, timestamp) => {
+        if (shouldDeferVisualFrame(timestamp)) {
+          return false;
+        }
         try {
           await sendVisualFrameWithRecovery(
             bytes,
@@ -646,6 +668,7 @@ export function CallPage() {
             height,
             "screen"
           );
+          return true;
         } catch (error) {
           await handleTransportFailure("screen", error);
           throw error;
@@ -658,7 +681,6 @@ export function CallPage() {
           settingsStore.settings.visual.changeThreshold
         );
         const tunedMinIntervalMs = toEffectiveProactiveMinInterval(
-          proactiveMode,
           settingsStore.settings.behavior.maxAutonomousCommentFrequencyMs
         );
         const decision = proactive.evaluate({
@@ -673,6 +695,8 @@ export function CallPage() {
           changeScore: score,
           threshold: tunedThreshold,
           minIntervalMs: tunedMinIntervalMs,
+          requiredSignificantFrames:
+            settingsStore.settings.behavior.requiredSignificantFrames,
           allowCommentaryDuringSilenceOnly:
             settingsStore.settings.behavior.allowCommentaryDuringSilenceOnly,
           allowCommentaryWhileUserIdleOnly:
@@ -713,6 +737,8 @@ export function CallPage() {
               proactiveMode,
               threshold: tunedThreshold,
               minIntervalMs: tunedMinIntervalMs,
+              requiredSignificantFrames:
+                settingsStore.settings.behavior.requiredSignificantFrames,
               userThreshold: settingsStore.settings.visual.changeThreshold,
               userMinIntervalMs:
                 settingsStore.settings.behavior.maxAutonomousCommentFrequencyMs
@@ -768,6 +794,9 @@ export function CallPage() {
         ? cameraPreviewRef.current
         : null,
       onFrame: (bytes, width, height, timestamp) => {
+        if (shouldDeferVisualFrame(timestamp)) {
+          return;
+        }
         void sendVisualFrameWithRecovery(
           bytes,
           timestamp,
@@ -966,15 +995,8 @@ function toEffectiveProactiveThreshold(
 }
 
 function toEffectiveProactiveMinInterval(
-  mode: "off" | "pure" | "assisted",
   baseMinIntervalMs: number
 ): number {
-  if (mode === "pure") {
-    return clamp(Math.round(baseMinIntervalMs * 0.5), 1200, 600000);
-  }
-  if (mode === "assisted") {
-    return clamp(Math.round(baseMinIntervalMs * 0.75), 1800, 600000);
-  }
   return clamp(Math.round(baseMinIntervalMs), 1000, 600000);
 }
 

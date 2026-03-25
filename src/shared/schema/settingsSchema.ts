@@ -17,6 +17,7 @@ export const settingsSchema = z.object({
     model: z.string().min(1),
     apiVersion: z.enum(["v1beta", "v1alpha"]),
     voiceName: z.string().min(1),
+    allowInterruption: z.boolean(),
     speechLanguageCode: z.enum(LIVE_SPEECH_LANGUAGE_CODES),
     inputTranscriptionEnabled: z.boolean(),
     outputTranscriptionEnabled: z.boolean(),
@@ -61,6 +62,7 @@ export const settingsSchema = z.object({
     systemPrompt: z.string().min(1),
     proactiveCommentaryPolicy: z.string().min(1),
     maxAutonomousCommentFrequencyMs: z.number().min(1000).max(600000),
+    requiredSignificantFrames: z.number().int().min(1).max(12),
     commentLengthPreset: z.enum(["short", "medium", "long"]),
     allowCommentaryDuringSilenceOnly: z.boolean(),
     allowCommentaryWhileUserIdleOnly: z.boolean()
@@ -86,7 +88,7 @@ function migrateLegacyProactiveTuning(settings: AppSettings): AppSettings {
     next.visual.changeThreshold = 0.12;
   }
   if (next.behavior.maxAutonomousCommentFrequencyMs === 12000) {
-    next.behavior.maxAutonomousCommentFrequencyMs = 6000;
+    next.behavior.maxAutonomousCommentFrequencyMs = 10000;
   }
 
   if (next.api.thinkingMode === "off") {

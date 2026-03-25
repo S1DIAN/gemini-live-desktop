@@ -18,6 +18,7 @@ The app is split into five runtime layers:
 ## Invariants
 
 - Saved plaintext API keys never leave the `main` or `worker` boundary.
+- Voice preview generation for settings UI is executed in `main` through Gemini TTS using the encrypted key; renderer receives only generated preview audio bytes.
 - The live session never runs in the renderer.
 - Command IPC and streaming media transport are separate mechanisms.
 - Worker commands are delivered only after an explicit worker-ready handshake from the utility process.
@@ -30,6 +31,7 @@ The app is split into five runtime layers:
 - Runtime capability normalization, not the UI, is the final authority for effective live config.
 - The current default model lives in `defaultSettings` and is `gemini-2.5-flash-native-audio-preview-12-2025`; the current default voice is `Aoede`.
 - Thinking mode is explicitly modeled as `off`/`auto`/`custom` in app settings and mapped to Live API budget as `0`/`-1`/custom budget before worker connect.
+- Interruption behavior is explicitly modeled as an app setting (`allowInterruption`) and mapped to Live API `realtimeInputConfig.activityHandling` (`START_OF_ACTIVITY_INTERRUPTS` or `NO_INTERRUPTION`) before worker connect.
 - Gemini Developer API live connect keeps automatic activity detection enabled; client-side manual activity signaling (`activityStart`/`activityEnd`) is not wired yet.
 - Microphone pause events must trigger `audioStreamEnd` delivery while automatic activity detection is active to flush cached audio.
 - Closing the last window on Windows must attempt a short graceful session disconnect, then tear down the worker process tree and terminate the app fully.
@@ -54,10 +56,11 @@ The app is split into five runtime layers:
 - `main` validates and persists settings in a versioned JSON file.
 - Diagnostics settings include an optional `showLiveTimingPanel` renderer toggle that enables an in-call side panel fed from diagnostics checkpoint events.
 - API version in settings is auto-derived (`v1alpha` for proactive or affective features, otherwise `v1beta`) during normalization and save.
-- Settings normalization performs a lightweight proactive-tuning migration for legacy defaults (`changeThreshold=0.22` -> `0.12`, `maxAutonomousCommentFrequencyMs=12000` -> `6000`) to reduce assisted commentary latency.
+- Settings normalization performs a lightweight proactive-tuning migration for legacy defaults (`changeThreshold=0.22` -> `0.12`, `maxAutonomousCommentFrequencyMs=12000` -> `10000`) and applies default significant-frame streak gating for autonomous commentary.
 - Settings normalization also applies legacy thinking migration so old persisted `thinkingBudget` values map into explicit thinking mode (`off`/`auto`/`custom`) without breaking existing installs.
 - API keys are stored separately as an encrypted blob through `safeStorage`.
 - The renderer can observe key presence and a masked label, but never the saved plaintext key.
+- Voice preview requests (`Play` in voice selectors) are routed through main-process IPC, which decrypts the saved key transiently and performs a short non-live Gemini TTS call for the selected prebuilt voice.
 
 ### Localization
 
@@ -77,6 +80,7 @@ The app is split into five runtime layers:
    For Gemini API compatibility, session resumption uses the resume handle only and does not send the Vertex-only `transparent` flag.
    Live transcription uses an empty `AudioTranscriptionConfig`; Gemini Developer API live connect does not accept `languageCodes`.
    Thinking config is sent with normalized budget plus optional thought summaries and optional thinking level (`model default` leaves level unset).
+   Realtime input activity handling is sent from connect-time settings and can disable model interruption when user activity starts.
    Manual VAD mode is normalized off in this client until `activityStart`/`activityEnd` signaling is implemented end-to-end.
    The Call page surfaces both the requested API version and the runtime effective version, plus inline error text for failed session actions.
 
@@ -85,6 +89,7 @@ The app is split into five runtime layers:
 - The renderer captures microphone audio with Web Audio, resamples to 16kHz mono PCM and sends small binary chunks through a message channel.
 - The renderer assigns a per-replica `turnId` at speech start (local RMS/VAD heuristic for telemetry) and tags outgoing microphone chunks while the turn is active.
 - The renderer captures screen and camera locally, downsizes frames, encodes them to JPEG, and sends binary frame payloads through a message channel with `latest-frame-wins`; the worker forwards those frames via `sendRealtimeInput.video`.
+- In proactive assistant modes (`pure`/`assisted`), while model speech playback is active, the renderer defers visual frame upload and skips proactive diff evaluation for deferred frames; frame upload resumes after a short cooldown once playback stops.
 - In assisted proactive mode, screen-diff evaluation and hidden hint decisions are applied only after the corresponding frame send attempt completes, keeping proactive commentary aligned to the latest delivered frame.
 - Worker forwards renderer proactive hidden hints via `sendRealtimeInput.text` so proactive trigger text follows the realtime media path.
 - Worker buffers model transcription chunks and thought chunks separately, and emits final model chat messages only after turn completion. Thought messages are tagged with transcript metadata (`thought=true`).
@@ -159,13 +164,14 @@ The worker does not own UI state or browser media capture.
 - Live speech output language is configured at connect time through `speechConfig.languageCode` from persisted settings, independent of bootstrap prompt text.
 - `FrameDiffService` owns screen-difference scoring.
 - `ProactiveOrchestrator` owns autonomous hint decisions only, including runtime-idle gating that accepts either server `waitingForInput` or local silence/playback state; local hinting is active for `pure` and `assisted` modes and disabled only when mode is `off`.
-- Call-page proactive evaluation applies mode-aware effective tuning before orchestration (`pure` lowers effective threshold and interval more aggressively than `assisted`) and emits both effective and user-configured tuning values in diagnostics for traceability.
+- Call-page proactive evaluation applies mode-aware effective threshold tuning before orchestration (`pure` lowers threshold more aggressively than `assisted`), while autonomous comment interval follows user-configured cooldown without mode-based reduction; diagnostics include effective and user-configured tuning values for traceability.
 - Renderer `ProactivityMetricsTracker` owns proactivity metric counters, block-reason aggregation, idle/cooldown uptime accounting, and end-of-session proactivity summary emission.
 - Renderer i18n module owns translation dictionaries and current locale state.
 - `src/main/app.ts` wires app bootstrap, lifecycle and shutdown.
 - `src/main/settingsRepository.ts` owns versioned settings persistence and normalization entry points.
 - `src/main/security/secureStorage.ts` owns encrypted API-key storage.
 - `src/main/ipc/*.ts` expose settings, live, diagnostics and display-media IPC.
+- `src/main/ipc/live.ipc.ts` also owns non-live voice preview generation (`live:preview-voice`) via Gemini TTS and returns preview audio blobs to the renderer.
 - `src/main/workers/liveWorkerLauncher.ts` owns the utility-process handshake, command queueing, connect watchdog and process-tree shutdown.
 - `src/preload/bridges/*.ts` expose the minimal renderer bridge surface.
 - `src/renderer/app/routes.tsx` owns top-level navigation.

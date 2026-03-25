@@ -11,7 +11,7 @@ interface ScreenCaptureOptions {
     width: number,
     height: number,
     timestamp: number
-  ) => void | Promise<void>;
+  ) => boolean | void | Promise<boolean | void>;
   onDiff: (score: number, frameTimestamp: number) => void;
   onEnded?: (reason: "revoked") => void;
 }
@@ -137,7 +137,15 @@ export class ScreenCaptureController {
     const imageData = context.getImageData(0, 0, width, height);
     const frameTimestamp = Date.now();
     const bytes = await encodeCanvasToJpeg(this.canvas, options.jpegQuality);
-    await options.onFrame(bytes, width, height, frameTimestamp);
+    const frameAccepted = await options.onFrame(
+      bytes,
+      width,
+      height,
+      frameTimestamp
+    );
+    if (frameAccepted === false) {
+      return;
+    }
 
     const diff = this.diffService.compare(imageData);
     options.onDiff(diff.score, frameTimestamp);

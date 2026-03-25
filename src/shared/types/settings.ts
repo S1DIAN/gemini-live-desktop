@@ -19,6 +19,7 @@ export interface ApiSettings {
   model: string;
   apiVersion: ApiVersion;
   voiceName: string;
+  allowInterruption: boolean;
   speechLanguageCode: SpeechLanguageCode;
   inputTranscriptionEnabled: boolean;
   outputTranscriptionEnabled: boolean;
@@ -60,6 +61,7 @@ export interface BehaviorSettings {
   systemPrompt: string;
   proactiveCommentaryPolicy: string;
   maxAutonomousCommentFrequencyMs: number;
+  requiredSignificantFrames: number;
   commentLengthPreset: CommentLengthPreset;
   allowCommentaryDuringSilenceOnly: boolean;
   allowCommentaryWhileUserIdleOnly: boolean;
@@ -88,6 +90,7 @@ export const defaultSettings: AppSettings = {
     model: "gemini-2.5-flash-native-audio-preview-12-2025",
     apiVersion: "v1beta",
     voiceName: "Aoede",
+    allowInterruption: true,
     speechLanguageCode: "en",
     inputTranscriptionEnabled: true,
     outputTranscriptionEnabled: true,
@@ -125,7 +128,8 @@ export const defaultSettings: AppSettings = {
       "You are a concise desktop voice assistant. Be useful, brief, avoid repetition, avoid chatter, and comment only on meaningful changes.",
     proactiveCommentaryPolicy:
       "Speak only when helpful. Prefer concise comments about meaningful user actions or significant screen changes.",
-    maxAutonomousCommentFrequencyMs: 6000,
+    maxAutonomousCommentFrequencyMs: 10000,
+    requiredSignificantFrames: 2,
     commentLengthPreset: "short",
     allowCommentaryDuringSilenceOnly: true,
     allowCommentaryWhileUserIdleOnly: true

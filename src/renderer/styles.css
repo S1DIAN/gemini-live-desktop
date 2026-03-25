@@ -477,6 +477,25 @@ pre {
   width: 100%;
 }
 
+.voice-preview-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  width: 100%;
+}
+
+.voice-preview-button {
+  min-width: 96px;
+}
+
+.voice-preview-button-compact {
+  min-height: 34px;
+  min-width: 84px;
+  padding-inline: 10px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
 .range-input-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

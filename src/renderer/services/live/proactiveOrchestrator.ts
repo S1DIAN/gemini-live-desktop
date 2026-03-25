@@ -12,12 +12,14 @@ export interface ProactiveInput {
   changeScore: number;
   threshold: number;
   minIntervalMs: number;
+  requiredSignificantFrames: number;
   allowCommentaryDuringSilenceOnly: boolean;
   allowCommentaryWhileUserIdleOnly: boolean;
 }
 
 export class ProactiveOrchestrator {
   private lastCommentAt = 0;
+  private significantFrameStreak = 0;
 
   evaluate(input: ProactiveInput): ProactiveDecision {
     if (input.proactiveMode === "off") {
@@ -29,7 +31,7 @@ export class ProactiveOrchestrator {
     if (!input.sessionReady || input.reconnecting) {
       return "SKIP_REASON_SESSION_NOT_READY";
     }
-    if (input.modelSpeaking) {
+    if (input.modelSpeaking || input.playbackActive) {
       return "SKIP_REASON_MODEL_CURRENTLY_SPEAKING";
     }
     if (input.allowCommentaryDuringSilenceOnly && input.userSpeaking) {
@@ -42,12 +44,18 @@ export class ProactiveOrchestrator {
       return "SKIP_REASON_RUNTIME_BLOCKED";
     }
     if (input.changeScore < input.threshold) {
+      this.significantFrameStreak = 0;
+      return "SKIP_REASON_CHANGE_TOO_SMALL";
+    }
+    this.significantFrameStreak += 1;
+    if (this.significantFrameStreak < input.requiredSignificantFrames) {
       return "SKIP_REASON_CHANGE_TOO_SMALL";
     }
     if (Date.now() - this.lastCommentAt < input.minIntervalMs) {
       return "SKIP_REASON_RATE_LIMIT_ACTIVE";
     }
     this.lastCommentAt = Date.now();
+    this.significantFrameStreak = 0;
     return "SEND_HIDDEN_HINT";
   }
 }

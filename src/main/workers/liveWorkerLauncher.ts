@@ -435,6 +435,7 @@ function summarizeConnectRequest(
     requestedApiVersion: payload.settings.apiVersion,
     proactiveMode: payload.settings.proactiveMode,
     voiceName: payload.settings.voiceName,
+    allowInterruption: payload.settings.allowInterruption,
     speechLanguageCode: payload.settings.speechLanguageCode,
     inputTranscriptionEnabled: payload.settings.inputTranscriptionEnabled,
     outputTranscriptionEnabled: payload.settings.outputTranscriptionEnabled,

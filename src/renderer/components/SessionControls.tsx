@@ -12,6 +12,7 @@ import { ScreenPreview } from "@renderer/components/ScreenPreview";
 import { CameraPreview } from "@renderer/components/CameraPreview";
 import { useSettingsStore } from "@renderer/state/settingsStore";
 import { LIVE_PREBUILT_VOICE_NAMES } from "@shared/constants/liveSpeech";
+import { VoicePreviewButton } from "@renderer/components/VoicePreviewButton";
 import {
   THINKING_BUDGET_AUTO,
   THINKING_BUDGET_MAX,
@@ -355,6 +356,11 @@ export function SessionControls(props: SessionControlsProps) {
                     </option>
                   ))}
                 </select>
+                <VoicePreviewButton
+                  voiceName={settings.api.voiceName}
+                  disabled={connectSetupLocked}
+                  compact
+                />
               </div>
 
               <div
@@ -417,6 +423,22 @@ export function SessionControls(props: SessionControlsProps) {
                     {copy.settings.options.proactiveMode.assisted}
                   </option>
                 </select>
+              </div>
+
+              <div
+                className={`dock-ai-settings-switch-row ${connectSetupLocked ? "dock-ai-settings-item-locked" : ""}`}
+              >
+                <span>{copy.settings.fields.allowInterruption}</span>
+                <Switch
+                  checked={settings.api.allowInterruption}
+                  disabled={connectSetupLocked}
+                  onChange={(next) =>
+                    update((draft) => {
+                      draft.api.allowInterruption = next;
+                      return draft;
+                    })
+                  }
+                />
               </div>
 
               <div

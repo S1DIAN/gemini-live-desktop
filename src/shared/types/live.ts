@@ -39,6 +39,7 @@ export interface EffectiveSessionSnapshot {
   model: string;
   apiVersion: ApiVersion;
   voiceName: string;
+  allowInterruption: boolean;
   speechLanguageCode?: SpeechLanguageCode;
   proactiveMode: ProactiveMode;
   thinkingMode: ThinkingMode;
@@ -84,6 +85,7 @@ export interface WorkerConnectRequest {
     model: string;
     apiVersion: ApiVersion;
     voiceName: string;
+    allowInterruption: boolean;
     speechLanguageCode: SpeechLanguageCode;
     proactiveMode: ProactiveMode;
     thinkingMode: ThinkingMode;

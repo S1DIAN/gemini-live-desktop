@@ -29,9 +29,22 @@ export interface ConnectPayload {
   speechLanguageCode?: SpeechLanguageCode;
 }
 
+export interface PreviewVoicePayload {
+  voiceName: string;
+  speechLanguageCode?: SpeechLanguageCode;
+}
+
+export interface VoicePreviewResult {
+  voiceName: string;
+  model: string;
+  mimeType: string;
+  audioBase64: string;
+}
+
 export interface LiveBridgeApi {
   connect(payload?: ConnectPayload): Promise<{ ok: boolean; reason?: string }>;
   disconnect(mode?: DisconnectMode): Promise<void>;
+  previewVoice(payload: PreviewVoicePayload): Promise<VoicePreviewResult>;
   probeNetworkLatency(): Promise<number | null>;
   sendTextMessage(
     text: string,
