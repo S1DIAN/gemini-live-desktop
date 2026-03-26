@@ -1,6 +1,5 @@
 import { ipcMain, dialog } from "electron";
 import { promises as fs } from "node:fs";
-import path from "node:path";
 import type { DiagnosticsEvent } from "../../shared/types/diagnostics";
 import type { EffectiveRuntimeConfig } from "../../shared/types/live";
 import type { AppSettings } from "../../shared/types/settings";
@@ -19,17 +18,11 @@ export function registerDiagnosticsIpc(
     pushDiagnostics(event);
   });
   ipcMain.handle("diagnostics:export", async () => {
-    const settings = await loadSettings();
-    const exportHint = settings.diagnostics.exportPathHint.trim();
-    const defaultPath = exportHint
-      ? path.extname(exportHint)
-        ? exportHint
-        : path.join(exportHint, "gemini-live-desktop.diagnostics.json")
-      : "gemini-live-desktop.diagnostics.json";
+    await loadSettings();
 
     const target = await dialog.showSaveDialog({
       title: "Export diagnostics log",
-      defaultPath
+      defaultPath: "gemini-live-desktop.diagnostics.json"
     });
 
     if (target.canceled || !target.filePath) {

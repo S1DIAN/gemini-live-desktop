@@ -8,6 +8,8 @@ export type Locale = "en" | "ru";
 export interface TranslationDictionary {
   app: {
     brand: string;
+    brandEyebrow: string;
+    brandEdition: string;
     navigation: {
       call: string;
       settings: string;
@@ -70,6 +72,10 @@ export interface TranslationDictionary {
       controlActionFailed: string;
       voiceTelemetryFailed: string;
       proactiveDecision: string;
+      audioTransportDetached: string;
+      visualTransportDetached: string;
+      microphoneStreamEnded: string;
+      microphoneStreamEndedUnexpectedly: string;
       cannotStartScreenWithoutSource: string;
       screenRevoked: string;
       transportFailed: (sourceLabel: string, message: string) => string;
@@ -128,7 +134,16 @@ export interface TranslationDictionary {
   };
   diagnostics: {
     title: string;
+    subtitle: string;
+    meta: string;
     exportLogs: string;
+    eventCountSuffix: string;
+    tableHeaders: {
+      level: string;
+      category: string;
+      message: string;
+      time: string;
+    };
     summary: string;
     latestStatus: string;
     effectiveSessionSnapshot: string;
@@ -149,6 +164,8 @@ export interface TranslationDictionary {
   };
   settings: {
     title: string;
+    subtitle: string;
+    meta: string;
     lockBanner: string;
     sections: {
       api: string;
@@ -156,6 +173,55 @@ export interface TranslationDictionary {
       visual: string;
       behavior: string;
       diagnostics: string;
+    };
+    sectionDescriptions: {
+      api: string;
+      audio: string;
+      visual: string;
+      behavior: string;
+      diagnostics: string;
+    };
+    help: {
+      iconAriaLabel: string;
+      sections: {
+        api: string;
+        audio: string;
+        visual: string;
+        behavior: string;
+        diagnostics: string;
+      };
+      fields: {
+        savedKey: string;
+        model: string;
+        apiVersionAuto: string;
+        voice: string;
+        allowInterruption: string;
+        thinkingMode: string;
+        thinkingBudget: string;
+        thinkingIncludeThoughts: string;
+        thinkingLevel: string;
+        modelVolume: string;
+        autoActivityDetection: string;
+        manualVadMode: string;
+        detectionSensitivity: string;
+        silenceDurationMs: string;
+        prefixPaddingMs: string;
+        mediaResolution: string;
+        frameIntervalMs: string;
+        jpegQuality: string;
+        changeThreshold: string;
+        previewEnabled: string;
+        proactiveMode: string;
+        affectiveDialog: string;
+        systemPrompt: string;
+        proactivePolicy: string;
+        maxAutonomousFrequencyMs: string;
+        requiredSignificantFrames: string;
+        commentaryDuringSilenceOnly: string;
+        commentaryWhileIdleOnly: string;
+        showLiveTimingPanel: string;
+        verboseLogging: string;
+      };
     };
     fields: {
       savedKey: string;
@@ -233,6 +299,8 @@ export const translations: Record<Locale, TranslationDictionary> = {
   en: {
     app: {
       brand: "Gemini Live Desktop",
+      brandEyebrow: "Professional",
+      brandEdition: "AI Studio",
       navigation: {
         call: "Call",
         settings: "Settings",
@@ -274,7 +342,7 @@ export const translations: Record<Locale, TranslationDictionary> = {
       },
       modelHints: {
         meaningfulScreenChange:
-          "A meaningful screen change was detected. If it is helpful, comment briefly on the change."
+          "Обнаружено существенное изменение на экране. Если это уместно, кратко прокомментируйте его."
       },
       messages: {
         connecting: "Connecting to Gemini Live...",
@@ -298,6 +366,10 @@ export const translations: Record<Locale, TranslationDictionary> = {
         controlActionFailed: "Control action failed",
         voiceTelemetryFailed: "Failed to send voice turn telemetry",
         proactiveDecision: "Proactive orchestrator decision",
+        audioTransportDetached: "Audio transport detached, requesting new media ports",
+        visualTransportDetached: "Visual transport detached, requesting new media ports",
+        microphoneStreamEnded: "Microphone stream ended",
+        microphoneStreamEndedUnexpectedly: "Microphone stream ended unexpectedly",
         cannotStartScreenWithoutSource:
           "Cannot start screen capture without a selected source",
         screenRevoked: "Screen sharing was revoked or stopped outside the app",
@@ -382,7 +454,17 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
     diagnostics: {
       title: "Diagnostics",
+      subtitle:
+        "Compact support view for the last session state, key failures and raw event trail.",
+      meta: "Support",
       exportLogs: "Export Logs",
+      eventCountSuffix: "events",
+      tableHeaders: {
+        level: "Level",
+        category: "Category",
+        message: "Message",
+        time: "Time"
+      },
       summary: "Summary",
       latestStatus: "Latest Status",
       effectiveSessionSnapshot: "Effective Session Snapshot",
@@ -404,6 +486,8 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
     settings: {
       title: "Settings",
+      subtitle: "One focused section at a time. No long scrolling setup screen.",
+      meta: "Workspace",
       lockBanner:
         "Connect-time session options are locked while connected or paused with session continuation. Use Disconnect to apply new setup options. Realtime tuning stays available.",
       sections: {
@@ -412,6 +496,85 @@ export const translations: Record<Locale, TranslationDictionary> = {
         visual: "Visual",
         behavior: "Behavior",
         diagnostics: "Diagnostics"
+      },
+      sectionDescriptions: {
+        api: "Secure key storage, model selection and connect-time voice setup.",
+        audio: "Playback level, activity detection and microphone turn segmentation.",
+        visual: "Screen and camera frame quality, cadence and local preview behavior.",
+        behavior: "Proactivity, affective dialog and system-level prompting behavior.",
+        diagnostics: "Verbose logging and live timing panel for support workflows."
+      },
+      help: {
+        iconAriaLabel: "Show setting description",
+        sections: {
+          api: "Secure key storage, model selection and connect-time voice setup.",
+          audio: "Playback level, activity detection and microphone turn segmentation.",
+          visual: "Screen and camera frame quality, cadence and local preview behavior.",
+          behavior: "Proactivity, affective dialog and system-level prompting behavior.",
+          diagnostics: "Verbose logging and live timing panel for support workflows."
+        },
+        fields: {
+          savedKey:
+            "Your API key is encrypted locally. The app can only show whether a key exists, not the full value.",
+          model:
+            "Selects which Gemini model will answer. Affects quality, speed, and feature support.",
+          apiVersionAuto:
+            "Set automatically. Switches to v1alpha when proactive mode or affective dialog requires it; otherwise uses v1beta.",
+          voice:
+            "Defines the model's speaking voice for audio replies. You can preview voices before connecting.",
+          allowInterruption:
+            "Lets you cut off the model by starting to speak. Turn off if you prefer uninterrupted full answers.",
+          thinkingMode:
+            "Controls extra reasoning before response: Off for lowest latency, Auto for model-chosen balance, Custom for manual control.",
+          thinkingBudget:
+            "Upper limit for reasoning tokens in Custom mode. Higher values can improve complex answers but increase latency and token usage.",
+          thinkingIncludeThoughts:
+            "Adds short reasoning summaries to the transcript when the model provides them.",
+          thinkingLevel:
+            "Hints how deep the model should think. Use higher levels for harder tasks and lower for faster replies.",
+          modelVolume:
+            "Playback volume of model audio in this app only. It does not change system volume.",
+          autoActivityDetection:
+            "Automatically detects when you start and stop speaking, so turns are sent without manual control.",
+          manualVadMode:
+            "Manual activity signaling mode. Kept for compatibility; this client currently turns it off on connect.",
+          detectionSensitivity:
+            "How easily speech is detected. Higher catches quiet speech sooner, but may trigger on background noise.",
+          silenceDurationMs:
+            "How long silence must last before your speech turn is considered finished.",
+          prefixPaddingMs:
+            "Keeps a short audio buffer before speech detection so first syllables are not clipped.",
+          mediaResolution:
+            "Resolution of camera/screen frames sent to the model. Higher improves detail but uses more CPU/network.",
+          frameIntervalMs:
+            "How often visual frames are sent. Lower values feel more live but increase load.",
+          jpegQuality:
+            "Image quality for visual frames. Higher quality gives clearer details but larger payloads.",
+          changeThreshold:
+            "Minimum visual change needed before a frame is treated as significant for proactive comments.",
+          previewEnabled:
+            "Shows local camera/screen preview tiles in the call dock. Turn off for a cleaner dock.",
+          proactiveMode:
+            "How proactive the assistant is: Off (reactive only), Pure (more autonomous), Assisted (more conservative).",
+          affectiveDialog:
+            "Makes voice responses sound more expressive and emotionally nuanced when supported by the selected model/API.",
+          systemPrompt:
+            "Base instruction that defines the assistant's default behavior and tone for each new connection.",
+          proactivePolicy:
+            "Extra rules for autonomous comments: what is allowed, what to avoid, and how often to speak.",
+          maxAutonomousFrequencyMs:
+            "Minimum pause between autonomous comments. Increase to reduce interruptions and chatter.",
+          requiredSignificantFrames:
+            "Number of consecutive significant visual changes required before autonomous commenting can start.",
+          commentaryDuringSilenceOnly:
+            "Allows autonomous comments only while you are silent, so it won't talk over your speech.",
+          commentaryWhileIdleOnly:
+            "Allows autonomous comments only when runtime signals mark you as idle.",
+          showLiveTimingPanel:
+            "Shows a per-turn latency panel on the Call page for quick performance checks.",
+          verboseLogging:
+            "Records more technical diagnostics for debugging and support exports."
+        }
       },
       fields: {
         savedKey: "Saved key",
@@ -496,6 +659,8 @@ export const translations: Record<Locale, TranslationDictionary> = {
   ru: {
     app: {
       brand: "Gemini Live Desktop",
+      brandEyebrow: "Профессиональный режим",
+      brandEdition: "AI Studio",
       navigation: {
         call: "Звонок",
         settings: "Настройки",
@@ -561,6 +726,13 @@ export const translations: Record<Locale, TranslationDictionary> = {
         controlActionFailed: "Ошибка действия управления",
         voiceTelemetryFailed: "Не удалось отправить телеметрию голосового хода",
         proactiveDecision: "Решение проактивного оркестратора",
+        audioTransportDetached:
+          "Аудиоканал транспорта отсоединён, запрашиваем новые медиа-порты",
+        visualTransportDetached:
+          "Видеоканал транспорта отсоединён, запрашиваем новые медиа-порты",
+        microphoneStreamEnded: "Поток микрофона завершился",
+        microphoneStreamEndedUnexpectedly:
+          "Поток микрофона неожиданно завершился",
         cannotStartScreenWithoutSource:
           "Невозможно запустить захват экрана без выбранного источника",
         screenRevoked: "Демонстрация экрана отозвана или остановлена вне приложения",
@@ -645,7 +817,17 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
     diagnostics: {
       title: "Диагностика",
+      subtitle:
+        "Компактный экран поддержки: последнее состояние сессии, ключевые сбои и лента сырых событий.",
+      meta: "Поддержка",
       exportLogs: "Экспорт логов",
+      eventCountSuffix: "событий",
+      tableHeaders: {
+        level: "Уровень",
+        category: "Категория",
+        message: "Сообщение",
+        time: "Время"
+      },
       summary: "Сводка",
       latestStatus: "Последний статус",
       effectiveSessionSnapshot: "Эффективный снимок сессии",
@@ -667,6 +849,9 @@ export const translations: Record<Locale, TranslationDictionary> = {
     },
     settings: {
       title: "Настройки",
+      subtitle:
+        "Один сфокусированный раздел за раз. Без длинного экрана с прокруткой.",
+      meta: "Рабочее пространство",
       lockBanner:
         "Параметры подключения заблокированы во время активной сессии и после паузы с сохранённым продолжением. Чтобы применить новые параметры подключения, используйте Отключить. Realtime-настройки остаются доступны.",
       sections: {
@@ -675,6 +860,88 @@ export const translations: Record<Locale, TranslationDictionary> = {
         visual: "Видео",
         behavior: "Поведение",
         diagnostics: "Диагностика"
+      },
+      sectionDescriptions: {
+        api: "Безопасное хранение ключа, выбор модели и голоса на этапе подключения.",
+        audio: "Громкость воспроизведения, детекция активности и сегментация голосовых ходов микрофона.",
+        visual:
+          "Качество кадров экрана и камеры, частота и локальный предпросмотр.",
+        behavior:
+          "Проактивность, аффективный диалог и поведение системного промпта.",
+        diagnostics:
+          "Подробное логирование и панель задержек для поддержки."
+      },
+      help: {
+        iconAriaLabel: "Показать описание параметра",
+        sections: {
+          api: "Безопасное хранение ключа, выбор модели и голоса на этапе подключения.",
+          audio: "Громкость, детекция активности и сегментация голосовых ходов микрофона.",
+          visual: "Качество кадров экрана/камеры, частота отправки и локальный предпросмотр.",
+          behavior: "Проактивность, аффективный диалог и поведение системного промпта.",
+          diagnostics: "Подробное логирование и панель задержек для отладки."
+        },
+        fields: {
+          savedKey:
+            "API-ключ хранится локально в зашифрованном виде. Приложение показывает только факт наличия ключа, без полного значения.",
+          model:
+            "Выбирает модель Gemini, которая будет отвечать. Влияет на качество, скорость и доступные возможности.",
+          apiVersionAuto:
+            "Выбирается автоматически: v1alpha включается, когда нужен проактивный режим или аффективный диалог, иначе используется v1beta.",
+          voice:
+            "Определяет голос озвучки ответов модели. Голоса можно прослушать до подключения.",
+          allowInterruption:
+            "Позволяет перебить ответ модели началом вашей речи. Выключите, если хотите, чтобы модель всегда договаривала до конца.",
+          thinkingMode:
+            "Управляет дополнительным размышлением перед ответом: Off — минимальная задержка, Auto — баланс от модели, Custom — ручная настройка.",
+          thinkingBudget:
+            "Лимит токенов размышления в режиме Custom. Большее значение может улучшить сложные ответы, но увеличивает задержку и расход токенов.",
+          thinkingIncludeThoughts:
+            "Добавляет в транскрипт краткое резюме рассуждений, если модель его возвращает.",
+          thinkingLevel:
+            "Подсказывает глубину размышления модели. Более высокий уровень — точнее на сложных задачах, но обычно медленнее.",
+          modelVolume:
+            "Громкость воспроизведения голоса модели только в этом приложении. Системную громкость не меняет.",
+          autoActivityDetection:
+            "Автоматически определяет начало и конец вашей речи, чтобы ходы микрофона отправлялись без ручного управления.",
+          manualVadMode:
+            "Режим ручной сигнализации активности. Оставлен для совместимости; в текущем клиенте при connect отключается.",
+          detectionSensitivity:
+            "Насколько легко детектируется речь. Выше — лучше ловит тихий голос, но чаще реагирует на фоновые шумы.",
+          silenceDurationMs:
+            "Как долго должна длиться тишина, чтобы речевой ход считался завершённым.",
+          prefixPaddingMs:
+            "Сохраняет небольшой аудио-буфер до начала речи, чтобы не обрезались первые слоги.",
+          mediaResolution:
+            "Разрешение кадров камеры и экрана, отправляемых модели. Выше — лучше детализация, но больше нагрузка.",
+          frameIntervalMs:
+            "Как часто отправляются визуальные кадры. Меньше значение — более живое обновление, но выше нагрузка.",
+          jpegQuality:
+            "Качество сжатия JPEG для визуальных кадров. Выше качество — четче картинка, но больше трафик.",
+          changeThreshold:
+            "Минимальный уровень изменения кадра, после которого оно считается значимым для проактивных комментариев.",
+          previewEnabled:
+            "Показывает локальные превью камеры и экрана в доке звонка. Можно выключить для более чистого интерфейса.",
+          proactiveMode:
+            "Насколько инициативно ведёт себя ассистент: Off — только по запросу, Pure — более автономно, Assisted — осторожнее.",
+          affectiveDialog:
+            "Делает голосовые ответы более живыми и эмоционально выразительными, если это поддерживает выбранная модель/API.",
+          systemPrompt:
+            "Базовая инструкция, которая задаёт стиль и поведение ассистента при каждом новом подключении.",
+          proactivePolicy:
+            "Дополнительные правила для автономных комментариев: что разрешено, что избегать и как часто вмешиваться.",
+          maxAutonomousFrequencyMs:
+            "Минимальная пауза между автономными комментариями. Увеличьте значение, чтобы снизить навязчивость.",
+          requiredSignificantFrames:
+            "Сколько значимых изменений подряд должно появиться на экране, прежде чем разрешён автономный комментарий.",
+          commentaryDuringSilenceOnly:
+            "Разрешает автономные комментарии только во время вашей тишины, чтобы не перебивать речь.",
+          commentaryWhileIdleOnly:
+            "Разрешает автономные комментарии только когда система считает пользователя неактивным.",
+          showLiveTimingPanel:
+            "Показывает на странице Call панель задержек по этапам каждого хода.",
+          verboseLogging:
+            "Добавляет расширенные технические события в диагностику для отладки и экспорта."
+        }
       },
       fields: {
         savedKey: "Сохранённый ключ",

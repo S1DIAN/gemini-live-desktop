@@ -104,3 +104,30 @@ export function CheckIcon(props: IconProps) {
     </BaseIcon>
   );
 }
+
+export function PlayIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M8 6.5v11l9-5.5Z" fill="currentColor" stroke="none" />
+    </BaseIcon>
+  );
+}
+
+export function PauseIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <rect x="7" y="6" width="3.5" height="12" rx="1" fill="currentColor" stroke="none" />
+      <rect x="13.5" y="6" width="3.5" height="12" rx="1" fill="currentColor" stroke="none" />
+    </BaseIcon>
+  );
+}
+
+export function QuestionCircleIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <circle cx="12" cy="12" r="8.8" />
+      <path d="M9.7 9.6a2.3 2.3 0 0 1 4.23 1.2c0 1.66-1.93 1.86-1.93 3.24" />
+      <circle cx="12" cy="16.8" r="0.8" fill="currentColor" stroke="none" />
+    </BaseIcon>
+  );
+}

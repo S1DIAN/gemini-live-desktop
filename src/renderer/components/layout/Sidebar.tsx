@@ -5,6 +5,7 @@ import {
   PhoneIcon,
   SettingsIcon
 } from "@renderer/components/ui/Icons";
+
 export function Sidebar() {
   const { locale, setLocale, copy } = useI18n();
 
@@ -17,9 +18,12 @@ export function Sidebar() {
   return (
     <aside className="app-sidebar">
       <div className="sidebar-brand-block">
-        <div className="sidebar-eyebrow">Workspace</div>
+        <div className="sidebar-eyebrow">{copy.app.brandEyebrow}</div>
         <div className="sidebar-brand">{copy.app.brand}</div>
+        <div className="sidebar-version-pill">{copy.app.brandEdition}</div>
       </div>
+
+      <div className="sidebar-divider" />
 
       <nav className="sidebar-nav">
         {navItems.map((item) => (

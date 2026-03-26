@@ -62,6 +62,32 @@ export function CallPage() {
   const frameSequence = useRef(0);
   const activeVoiceTurn = useRef<LocalVoiceTurnState | null>(null);
   const visualFrameResumeAt = useRef(0);
+  const speakingLatchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [speakingLatch, setSpeakingLatch] = useState(false);
+
+  // Keep is-speaking class alive 1.2s after both modelSpeaking and playbackActive go false
+  useEffect(() => {
+    const isSpeakingNow = session.modelSpeaking || session.playbackActive;
+    if (isSpeakingNow) {
+      if (speakingLatchTimer.current) {
+        clearTimeout(speakingLatchTimer.current);
+        speakingLatchTimer.current = null;
+      }
+      setSpeakingLatch(true);
+    } else {
+      if (!speakingLatchTimer.current) {
+        speakingLatchTimer.current = setTimeout(() => {
+          setSpeakingLatch(false);
+          speakingLatchTimer.current = null;
+        }, 1200);
+      }
+    }
+    return () => {
+      if (speakingLatchTimer.current) {
+        clearTimeout(speakingLatchTimer.current);
+      }
+    };
+  }, [session.modelSpeaking, session.playbackActive]);
 
   const connectionBusy = useMemo(
     () => isConnectionBusy(session.status),
@@ -78,7 +104,7 @@ export function CallPage() {
     session.status === "connected" ||
     session.status === "reconnecting" ||
     session.status === "disconnecting";
-  const orbIsSpeaking = session.modelSpeaking;
+  const orbIsSpeaking = speakingLatch;
   const orbLevel = useMemo(() => {
     if (orbIsIdle) {
       return 0;
@@ -148,6 +174,7 @@ export function CallPage() {
   }, []);
 
   async function stopAllLocalMedia(): Promise<void> {
+    liveClientAdapter.clearPlayback();
     abortActiveVoiceTurn(
       "user_cancel",
       "capture",
@@ -302,7 +329,7 @@ export function CallPage() {
         timestamp: Date.now(),
         level: "warn",
         category: "media",
-        message: "Audio transport detached, requesting new media ports",
+        message: copy.callPage.messages.audioTransportDetached,
         details: {
           error: error instanceof Error ? error.message : String(error)
         }
@@ -341,7 +368,7 @@ export function CallPage() {
         timestamp: Date.now(),
         level: "warn",
         category: "media",
-        message: "Visual transport detached, requesting new media ports",
+        message: copy.callPage.messages.visualTransportDetached,
         details: {
           stream,
           error: error instanceof Error ? error.message : String(error)
@@ -419,16 +446,12 @@ export function CallPage() {
       status: "disconnecting",
       lastError: ""
     });
-    let pauseError: unknown = null;
+    const disconnectPromise = liveClientAdapter.disconnect("pause");
     try {
-      await liveClientAdapter.disconnect("pause");
+      await stopAllLocalMedia();
+      await disconnectPromise;
     } catch (error) {
-      pauseError = error;
-    }
-    await stopAllLocalMedia();
-
-    if (pauseError) {
-      throw pauseError;
+      throw error;
     }
 
     setActionMessage({
@@ -451,16 +474,12 @@ export function CallPage() {
       status: "disconnecting",
       lastError: ""
     });
-    let disconnectError: unknown = null;
+    const disconnectPromise = liveClientAdapter.disconnect("terminate");
     try {
-      await liveClientAdapter.disconnect("terminate");
+      await stopAllLocalMedia();
+      await disconnectPromise;
     } catch (error) {
-      disconnectError = error;
-    }
-    await stopAllLocalMedia();
-
-    if (disconnectError) {
-      throw disconnectError;
+      throw error;
     }
 
     useTranscriptStore.getState().clear();
@@ -585,14 +604,14 @@ export function CallPage() {
         abortActiveVoiceTurn(
           "mic_capture_failure",
           "capture",
-          "Microphone stream ended"
+          copy.callPage.messages.microphoneStreamEnded
         );
         session.setMicEnabled(false);
         setActionMessage({
           tone: "error",
           text: copy.callPage.messages.transportFailed(
             copy.callPage.mediaSource.microphone,
-            "Microphone stream ended unexpectedly"
+            copy.callPage.messages.microphoneStreamEndedUnexpectedly
           )
         });
         appendDiagnostic({
@@ -603,7 +622,7 @@ export function CallPage() {
           message: copy.callPage.messages.transportFailedShort(
             copy.callPage.mediaSource.microphone
           ),
-          details: { message: "Microphone stream ended unexpectedly" }
+          details: { message: copy.callPage.messages.microphoneStreamEndedUnexpectedly }
         });
       }
     });
@@ -896,17 +915,24 @@ export function CallPage() {
         <div className="call-main-column">
           <section className="call-voice-stage" aria-hidden="true">
             <div
-              className={`voice-orb${liveSessionActive ? " is-live" : ""}${
+              className={`voice-orb-wrap${liveSessionActive ? " is-live" : ""}${
                 orbIsConnecting ? " is-connecting" : ""
               }${orbIsSpeaking ? " is-speaking" : ""}${orbIsIdle ? " is-idle" : ""}`}
               style={orbStyle}
             >
-              <div className="voice-orb-bars">
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
+              <div
+                className={`voice-orb${liveSessionActive ? " is-live" : ""}${
+                  orbIsConnecting ? " is-connecting" : ""
+                }${orbIsSpeaking ? " is-speaking" : ""}${orbIsIdle ? " is-idle" : ""}`}
+                style={orbStyle}
+              >
+                <div className="voice-orb-bars">
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </div>
               </div>
             </div>
           </section>
@@ -916,7 +942,18 @@ export function CallPage() {
               <div className="transcript-composer">
                 <textarea
                   value={text}
-                  onChange={(event) => setText(event.target.value)}
+                  rows={1}
+                  onChange={(event) => {
+                    setText(event.target.value);
+                    event.target.style.height = "24px";
+                    event.target.style.height = `${Math.min(event.target.scrollHeight, 120)}px`;
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      void onSendText();
+                    }
+                  }}
                   placeholder={copy.callPage.manualTextPlaceholder}
                   disabled={connectionBusy}
                 />
@@ -926,6 +963,7 @@ export function CallPage() {
                   disabled={connectionBusy || text.trim().length === 0}
                 >
                   {copy.callPage.sendText}
+                  <span aria-hidden="true">▷</span>
                 </button>
               </div>
             }

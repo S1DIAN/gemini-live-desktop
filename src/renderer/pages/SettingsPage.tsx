@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSettingsStore } from "@renderer/state/settingsStore";
 import { useSessionStore } from "@renderer/state/sessionStore";
 import { hasLiveSession } from "@renderer/state/sessionStatus";
@@ -28,8 +28,15 @@ export function SettingsPage() {
   const sessionConfigLocked =
     hasLiveSession(sessionStatus) || retainedSessionLock;
   const [apiKeyInput, setApiKeyInput] = useState("");
+  const [apiKeySaving, setApiKeySaving] = useState(false);
+  const apiKeySaveInFlightRef = useRef(false);
+  const lastSavedApiKeyRef = useRef("");
   const [activeSection, setActiveSection] = useState<SettingsSectionKey>("api");
+  const [voicePreviewError, setVoicePreviewError] = useState("");
+  const [voicePickerOpen, setVoicePickerOpen] = useState(false);
+  const voicePickerRef = useRef<HTMLDivElement | null>(null);
   const settingsCopy = copy.settings;
+  const settingsHelp = settingsCopy.help;
 
   const voiceOptions = useMemo(() => {
     const base = Array.from(LIVE_PREBUILT_VOICE_NAMES) as string[];
@@ -71,12 +78,62 @@ export function SettingsPage() {
     });
   };
 
+  const persistApiKey = async (rawValue: string) => {
+    const nextKey = rawValue.trim();
+    if (
+      !nextKey ||
+      apiKeySaveInFlightRef.current ||
+      nextKey === lastSavedApiKeyRef.current
+    ) {
+      return;
+    }
+    apiKeySaveInFlightRef.current = true;
+    setApiKeySaving(true);
+    try {
+      await setApiKey(nextKey);
+      lastSavedApiKeyRef.current = nextKey;
+    } finally {
+      apiKeySaveInFlightRef.current = false;
+      setApiKeySaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!apiKeyInput.trim()) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void persistApiKey(apiKeyInput);
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [apiKeyInput]);
+
+  useEffect(() => {
+    if (!voicePickerOpen) {
+      return;
+    }
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (voicePickerRef.current?.contains(target)) {
+        return;
+      }
+      setVoicePickerOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+    };
+  }, [voicePickerOpen]);
+
   return (
     <section className="page settings-page">
       <PageHeader
         title={settingsCopy.title}
-        subtitle="One focused section at a time. No long scrolling setup screen."
-        meta="Workspace"
+        subtitle={settingsCopy.subtitle}
+        meta={settingsCopy.meta}
       />
 
       {sessionConfigLocked ? (
@@ -99,25 +156,46 @@ export function SettingsPage() {
       </div>
 
       {activeSection === "api" ? (
-        <SectionCard
-          title={settingsCopy.sections.api}
-          description="Secure key storage, model selection and connect-time voice setup."
-        >
+        <SectionCard title={settingsCopy.sections.api}>
           <div className="settings-list">
             <SettingsRow
+              className="settings-row-wide-control"
               label={settingsCopy.fields.savedKey}
               description={apiKeyState.maskedLabel || settingsCopy.fields.noKeySaved}
               control={
-                <div className="control-cluster">
+                <div className="api-key-control">
                   <input
-                    value={apiKeyState.maskedLabel}
-                    readOnly
-                    placeholder={settingsCopy.fields.noKeySaved}
+                    disabled={sessionConfigLocked || apiKeySaving}
+                    value={apiKeyInput}
+                    onChange={(event) => setApiKeyInput(event.target.value)}
+                    onBlur={() => void persistApiKey(apiKeyInput)}
+                    onPaste={(event) => {
+                      event.preventDefault();
+                      const pasted = event.clipboardData.getData("text");
+                      if (!pasted.trim()) {
+                        return;
+                      }
+                      setApiKeyInput(pasted);
+                      void persistApiKey(pasted);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void persistApiKey(apiKeyInput);
+                      }
+                    }}
+                    placeholder={
+                      apiKeyState.maskedLabel || settingsCopy.fields.pasteApiKey
+                    }
                   />
                   <button
                     className="button-secondary"
-                    disabled={sessionConfigLocked}
-                    onClick={() => void clearApiKey()}
+                    disabled={sessionConfigLocked || !apiKeyState.hasKey}
+                    onClick={() => {
+                      lastSavedApiKeyRef.current = "";
+                      setApiKeyInput("");
+                      void clearApiKey();
+                    }}
                   >
                     {settingsCopy.fields.deleteKey}
                   </button>
@@ -125,28 +203,8 @@ export function SettingsPage() {
               }
             />
             <SettingsRow
-              label={settingsCopy.fields.newKey}
-              description={settingsCopy.fields.pasteApiKey}
-              control={
-                <div className="control-cluster">
-                  <input
-                    disabled={sessionConfigLocked}
-                    value={apiKeyInput}
-                    onChange={(event) => setApiKeyInput(event.target.value)}
-                    placeholder={settingsCopy.fields.pasteApiKey}
-                  />
-                  <button
-                    className="button-primary"
-                    disabled={sessionConfigLocked}
-                    onClick={() => void setApiKey(apiKeyInput)}
-                  >
-                    {settingsCopy.fields.saveKey}
-                  </button>
-                </div>
-              }
-            />
-            <SettingsRow
               label={settingsCopy.fields.model}
+              helpText={settingsHelp.fields.model}
               control={
                 <input
                   disabled={sessionConfigLocked}
@@ -162,39 +220,72 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.apiVersionAuto}
-              description={settingsCopy.fields.apiVersionHelp}
+              helpText={settingsHelp.fields.apiVersionAuto}
               control={<input value={settings.api.apiVersion} readOnly />}
             />
             <SettingsRow
               label={settingsCopy.fields.voice}
+              helpText={settingsHelp.fields.voice}
+              description={voicePreviewError || undefined}
               control={
-                <div className="voice-preview-control">
-                  <select
+                <div className="voice-picker" ref={voicePickerRef}>
+                  <button
+                    type="button"
+                    className="voice-picker-trigger"
                     disabled={sessionConfigLocked}
-                    value={settings.api.voiceName}
-                    onChange={(event) =>
-                      update((draft) => {
-                        draft.api.voiceName = event.target.value;
-                        return draft;
-                      })
-                    }
+                    onClick={() => setVoicePickerOpen((state) => !state)}
                   >
-                    {voiceOptions.map((voiceName) => (
-                      <option key={voiceName} value={voiceName}>
-                        {voiceName}
-                      </option>
-                    ))}
-                  </select>
-                  <VoicePreviewButton
-                    voiceName={settings.api.voiceName}
-                    disabled={sessionConfigLocked}
-                  />
+                    <span className="voice-picker-trigger-label">
+                      {settings.api.voiceName}
+                    </span>
+                    <span className="voice-picker-trigger-caret" aria-hidden="true">
+                      v
+                    </span>
+                  </button>
+                  {voicePickerOpen ? (
+                    <div className="voice-picker-menu">
+                      {voiceOptions.map((voiceName) => (
+                        <div key={voiceName} className="voice-picker-item">
+                          <VoicePreviewButton
+                            voiceName={voiceName}
+                            disabled={sessionConfigLocked}
+                            compact
+                            onError={(error) =>
+                              setVoicePreviewError(
+                                error instanceof Error
+                                  ? error.message
+                                  : String(error)
+                              )
+                            }
+                          />
+                          <button
+                            type="button"
+                            className={
+                              voiceName === settings.api.voiceName
+                                ? "voice-picker-option active"
+                                : "voice-picker-option"
+                            }
+                            onClick={() => {
+                              setVoicePreviewError("");
+                              setVoicePickerOpen(false);
+                              update((draft) => {
+                                draft.api.voiceName = voiceName;
+                                return draft;
+                              });
+                            }}
+                          >
+                            {voiceName}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               }
             />
             <SettingsRow
               label={settingsCopy.fields.allowInterruption}
-              description={settingsCopy.fields.allowInterruptionHelp}
+              helpText={settingsHelp.fields.allowInterruption}
               control={
                 <Switch
                   checked={settings.api.allowInterruption}
@@ -210,7 +301,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.thinkingMode}
-              description={settingsCopy.fields.thinkingModeHelp}
+              helpText={settingsHelp.fields.thinkingMode}
               control={
                 <select
                   disabled={sessionConfigLocked}
@@ -241,7 +332,7 @@ export function SettingsPage() {
             {settings.api.thinkingMode === "custom" ? (
               <SettingsRow
                 label={settingsCopy.fields.thinkingBudget}
-                description={settingsCopy.fields.thinkingBudgetHelp}
+                helpText={settingsHelp.fields.thinkingBudget}
                 control={
                   <input
                     disabled={sessionConfigLocked}
@@ -269,6 +360,7 @@ export function SettingsPage() {
             ) : null}
             <SettingsRow
               label={settingsCopy.fields.thinkingIncludeThoughts}
+              helpText={settingsHelp.fields.thinkingIncludeThoughts}
               control={
                 <Switch
                   checked={settings.api.thinkingIncludeThoughts}
@@ -284,6 +376,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.thinkingLevel}
+              helpText={settingsHelp.fields.thinkingLevel}
               control={
                 <select
                   disabled={sessionConfigLocked}
@@ -323,13 +416,11 @@ export function SettingsPage() {
       ) : null}
 
       {activeSection === "audio" ? (
-        <SectionCard
-          title={settingsCopy.sections.audio}
-          description="Playback level, activity detection and microphone turn segmentation."
-        >
+        <SectionCard title={settingsCopy.sections.audio}>
           <div className="settings-list">
             <SettingsRow
               label={settingsCopy.fields.modelVolume}
+              helpText={settingsHelp.fields.modelVolume}
               control={
                 <div className="range-input-row">
                   <input
@@ -351,6 +442,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.autoActivityDetection}
+              helpText={settingsHelp.fields.autoActivityDetection}
               control={
                 <Switch
                   checked={settings.audio.detection.enabled}
@@ -366,6 +458,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.manualVadMode}
+              helpText={settingsHelp.fields.manualVadMode}
               control={
                 <Switch
                   checked={settings.audio.detection.manualMode}
@@ -381,6 +474,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.detectionSensitivity}
+              helpText={settingsHelp.fields.detectionSensitivity}
               control={
                 <div className="range-input-row">
                   <input
@@ -405,6 +499,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.silenceDurationMs}
+              helpText={settingsHelp.fields.silenceDurationMs}
               control={
                 <input
                   disabled={sessionConfigLocked}
@@ -421,6 +516,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.prefixPaddingMs}
+              helpText={settingsHelp.fields.prefixPaddingMs}
               control={
                 <input
                   disabled={sessionConfigLocked}
@@ -440,13 +536,11 @@ export function SettingsPage() {
       ) : null}
 
       {activeSection === "visual" ? (
-        <SectionCard
-          title={settingsCopy.sections.visual}
-          description="Screen and camera frame quality, cadence and local preview behavior."
-        >
+        <SectionCard title={settingsCopy.sections.visual}>
           <div className="settings-list">
             <SettingsRow
               label={settingsCopy.fields.mediaResolution}
+              helpText={settingsHelp.fields.mediaResolution}
               control={
                 <select
                   disabled={sessionConfigLocked}
@@ -469,6 +563,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.frameIntervalMs}
+              helpText={settingsHelp.fields.frameIntervalMs}
               control={
                 <input
                   type="number"
@@ -484,6 +579,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.jpegQuality}
+              helpText={settingsHelp.fields.jpegQuality}
               control={
                 <div className="range-input-row">
                   <input
@@ -502,6 +598,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.changeThreshold}
+              helpText={settingsHelp.fields.changeThreshold}
               control={
                 <div className="range-input-row">
                   <input
@@ -520,6 +617,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.previewEnabled}
+              helpText={settingsHelp.fields.previewEnabled}
               control={
                 <Switch
                   checked={settings.visual.previewEnabled}
@@ -537,13 +635,11 @@ export function SettingsPage() {
       ) : null}
 
       {activeSection === "behavior" ? (
-        <SectionCard
-          title={settingsCopy.sections.behavior}
-          description="Proactivity, affective dialog and system-level prompting behavior."
-        >
+        <SectionCard title={settingsCopy.sections.behavior}>
           <div className="settings-list">
             <SettingsRow
               label={settingsCopy.fields.proactiveMode}
+              helpText={settingsHelp.fields.proactiveMode}
               control={
                 <select
                   disabled={sessionConfigLocked}
@@ -568,6 +664,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.affectiveDialog}
+              helpText={settingsHelp.fields.affectiveDialog}
               control={
                 <Switch
                   checked={settings.api.enableAffectiveDialog}
@@ -583,6 +680,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.systemPrompt}
+              helpText={settingsHelp.fields.systemPrompt}
               control={
                 <textarea
                   disabled={sessionConfigLocked}
@@ -598,6 +696,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.proactivePolicy}
+              helpText={settingsHelp.fields.proactivePolicy}
               control={
                 <textarea
                   disabled={sessionConfigLocked}
@@ -613,6 +712,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.maxAutonomousFrequencyMs}
+              helpText={settingsHelp.fields.maxAutonomousFrequencyMs}
               control={
                 <input
                   type="number"
@@ -630,7 +730,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.requiredSignificantFrames}
-              description={settingsCopy.fields.requiredSignificantFramesHelp}
+              helpText={settingsHelp.fields.requiredSignificantFrames}
               control={
                 <input
                   type="number"
@@ -655,6 +755,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.commentaryDuringSilenceOnly}
+              helpText={settingsHelp.fields.commentaryDuringSilenceOnly}
               control={
                 <Switch
                   checked={settings.behavior.allowCommentaryDuringSilenceOnly}
@@ -669,6 +770,7 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.commentaryWhileIdleOnly}
+              helpText={settingsHelp.fields.commentaryWhileIdleOnly}
               control={
                 <Switch
                   checked={settings.behavior.allowCommentaryWhileUserIdleOnly}
@@ -686,13 +788,11 @@ export function SettingsPage() {
       ) : null}
 
       {activeSection === "diagnostics" ? (
-        <SectionCard
-          title={settingsCopy.sections.diagnostics}
-          description="Verbose logging and export destination hints for support workflows."
-        >
+        <SectionCard title={settingsCopy.sections.diagnostics}>
           <div className="settings-list">
             <SettingsRow
               label={settingsCopy.fields.showLiveTimingPanel}
+              helpText={settingsHelp.fields.showLiveTimingPanel}
               control={
                 <Switch
                   checked={settings.diagnostics.showLiveTimingPanel}
@@ -707,26 +807,13 @@ export function SettingsPage() {
             />
             <SettingsRow
               label={settingsCopy.fields.verboseLogging}
+              helpText={settingsHelp.fields.verboseLogging}
               control={
                 <Switch
                   checked={settings.diagnostics.enableVerboseLogging}
                   onChange={(next) =>
                     update((draft) => {
                       draft.diagnostics.enableVerboseLogging = next;
-                      return draft;
-                    })
-                  }
-                />
-              }
-            />
-            <SettingsRow
-              label={settingsCopy.fields.exportPathHint}
-              control={
-                <input
-                  value={settings.diagnostics.exportPathHint}
-                  onChange={(event) =>
-                    update((draft) => {
-                      draft.diagnostics.exportPathHint = event.target.value;
                       return draft;
                     })
                   }

@@ -40,6 +40,7 @@ The app is split into five runtime layers:
 - Session teardown must support two explicit modes:
   - `pause`: close transport while preserving resumable state for reconnecting to the same live chat.
   - `terminate`: close transport and clear resumable state so the next connect starts a new live session; renderer transcript history is cleared immediately on successful terminate.
+- User-initiated session teardown (`pause` or `terminate`) must immediately hard-stop renderer playback and local media capture before waiting for worker disconnect completion.
 - Renderer route navigation must not implicitly stop active local media capture; mic/camera/screen are runtime session controls and change only through explicit toggles or terminal session-state teardown.
 - Connect-time setup controls in the renderer are locked during active live session states (`connecting`, `connected`, `reconnecting`, `disconnecting`) and while paused session continuation is retained; realtime renderer tuning remains editable.
 - Renderer language switching controls a connect-time speech-language override (`speechConfig.languageCode`) for the next connect; it must not force reconnect during an active session.
@@ -98,6 +99,7 @@ The app is split into five runtime layers:
 - Renderer microphone capture listens for unexpected track-end and reports an explicit media failure path instead of leaving mic UI state stale.
 - If a stored microphone device ID is unavailable, renderer microphone capture retries on the system default input device to avoid dead input paths.
 - Renderer model-audio playback keeps PCM16 sample alignment across chunk boundaries (including odd-byte chunk splits), resets decoder carry state on turn boundaries, and keeps a short playback lead buffer to reduce underrun crackle.
+- During manual `pause`/`terminate`, renderer playback queue is cleared immediately and worker drops late incoming model events so audio cannot continue after disconnect is initiated.
 - The worker base64-encodes only at the final SDK boundary when building Gemini blobs.
 - Renderer sends sparse voice telemetry markers (`mic_*`, `vad_*`, playback markers, `turn_aborted`) through command IPC; worker correlates them with chunk upload and server/model events.
 - With Gemini Developer API automatic activity detection enabled, there is no explicit per-turn SDK commit call for microphone turns. `client_turn_commit_sent` is therefore a diagnostic name for the local renderer/worker handoff when VAD closes a turn, while `server_turn_ack_received` is the first correlatable server message for that turn.

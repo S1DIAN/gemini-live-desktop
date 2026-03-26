@@ -9,15 +9,18 @@ Windows-only Electron desktop client for Gemini Live with secure key handling, r
 
 - Single-user local desktop app for Windows.
 - Encrypted Gemini API key storage in the main process.
+- API key settings use a single inline field with auto-save (paste/typing/blur) and `Delete`.
 - Microphone, camera, and screen capture with binary worker transport.
 - Turn latency telemetry, diagnostics export, and turn-final model transcript rendering.
 - Turn-final model transcript rendering with API-native thought metadata (`thought`) for collapsible "thinking" UI.
 - Chat-style transcript with compact dock-anchored camera/screen previews.
+- Latest transcript card now enters with a soft motion and reveals new text progressively (typewriter-style), with reduced-motion fallback.
 - Dock-level quick AI settings panel (gear) for model, voice, assistant mode and thinking controls.
-- Voice selector includes inline `Play`/`Pause` preview for the currently selected prebuilt voice without starting a Live session.
+- Voice selector uses a dropdown list where each prebuilt voice has its own inline `Play`/`Pause` preview button.
 - Connect-time interruption control (`Allow Interruption`) to choose whether user speech can cut off model audio responses.
 - Sidebar language switcher (`English`/`Russian`) remains pinned at the bottom of the left column.
 - `Pause` preserves resumable session state; `Disconnect` resets session state and clears renderer chat history.
+- User-triggered `Pause` and `Disconnect` hard-stop local playback/capture immediately while transport teardown finishes in background.
 - English and Russian UI with runtime switching.
 - Pure and assisted proactive modes with capability normalization.
 - Thinking configuration with explicit `off` / `auto` / `custom` modes, budget range guidance, thought-summary toggle and thinking-level selection.
@@ -74,9 +77,9 @@ npm run dist:win
 ## Workflow
 
 1. Start the app.
-2. Open Settings and save a Gemini API key.
+2. Open Settings and paste a Gemini API key in the API field (saved automatically).
 3. Configure model, voice, interruption behavior (`Allow Interruption`), thinking mode (`off`/`auto`/`custom`), devices, visual settings, behavior (including proactive cooldown and significant-frame streak), and diagnostics options (changes are autosaved).
-4. Optionally use `Play`/`Pause` next to `Voice` to preview the selected prebuilt voice (short TTS sample, no Live connect required).
+4. Optionally open `Voice` dropdown and use `Play`/`Pause` next to any listed voice to preview it (short TTS sample, no Live connect required).
 5. Optionally enable `Show Live Timing Panel` in Diagnostics settings to surface per-turn latency checkpoints on the Call page.
 6. Return to the Call page and connect a live session.
 7. Enable microphone, camera, and screen capture as needed.

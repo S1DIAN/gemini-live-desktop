@@ -13,6 +13,7 @@ import { CameraPreview } from "@renderer/components/CameraPreview";
 import { useSettingsStore } from "@renderer/state/settingsStore";
 import { LIVE_PREBUILT_VOICE_NAMES } from "@shared/constants/liveSpeech";
 import { VoicePreviewButton } from "@renderer/components/VoicePreviewButton";
+import { HelpTooltip } from "@renderer/components/ui/HelpTooltip";
 import {
   THINKING_BUDGET_AUTO,
   THINKING_BUDGET_MAX,
@@ -53,14 +54,17 @@ interface SessionControlsProps {
 export function SessionControls(props: SessionControlsProps) {
   const { copy } = useI18n();
   const { settings, update } = useSettingsStore();
+  const settingsHelp = copy.settings.help;
   const [busy, setBusy] = useState(false);
   const [busyAction, setBusyAction] = useState<
     "connect" | "pause" | "disconnect" | "mic" | "camera" | "screen" | null
   >(null);
   const [openPicker, setOpenPicker] = useState<"camera" | "screen" | null>(null);
+  const [voicePickerOpen, setVoicePickerOpen] = useState(false);
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   const settingsPanelRef = useRef<HTMLDivElement | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const voicePickerRef = useRef<HTMLDivElement | null>(null);
   const sessionActive = hasLiveSession(props.status);
   const pausedWithRetainedConfig =
     props.status === "disconnected" && props.connectConfigLocked;
@@ -116,6 +120,26 @@ export function SessionControls(props: SessionControlsProps) {
       document.removeEventListener("mousedown", handlePointerDown);
     };
   }, [settingsPanelOpen]);
+
+  useEffect(() => {
+    if (!voicePickerOpen) {
+      return;
+    }
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (voicePickerRef.current?.contains(target)) {
+        return;
+      }
+      setVoicePickerOpen(false);
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [voicePickerOpen]);
 
   function updateThinkingMode(next: "off" | "auto" | "custom"): void {
     update((draft) => {
@@ -317,9 +341,15 @@ export function SessionControls(props: SessionControlsProps) {
               <div
                 className={`dock-ai-settings-section ${connectSetupLocked ? "dock-ai-settings-item-locked" : ""}`}
               >
-                <label className="dock-ai-settings-label" htmlFor="dock-model-input">
-                  {copy.settings.fields.model}
-                </label>
+                <div className="dock-label-with-help">
+                  <label className="dock-ai-settings-label" htmlFor="dock-model-input">
+                    {copy.settings.fields.model}
+                  </label>
+                  <HelpTooltip
+                    content={settingsHelp.fields.model}
+                    ariaLabel={settingsHelp.iconAriaLabel}
+                  />
+                </div>
                 <input
                   id="dock-model-input"
                   disabled={connectSetupLocked}
@@ -336,42 +366,79 @@ export function SessionControls(props: SessionControlsProps) {
               <div
                 className={`dock-ai-settings-section ${connectSetupLocked ? "dock-ai-settings-item-locked" : ""}`}
               >
-                <label className="dock-ai-settings-label" htmlFor="dock-voice-select">
-                  {copy.settings.fields.voice}
-                </label>
-                <select
-                  id="dock-voice-select"
-                  disabled={connectSetupLocked}
-                  value={settings.api.voiceName}
-                  onChange={(event) =>
-                    update((draft) => {
-                      draft.api.voiceName = event.target.value;
-                      return draft;
-                    })
-                  }
-                >
-                  {voiceOptions.map((voiceName) => (
-                    <option key={voiceName} value={voiceName}>
-                      {voiceName}
-                    </option>
-                  ))}
-                </select>
-                <VoicePreviewButton
-                  voiceName={settings.api.voiceName}
-                  disabled={connectSetupLocked}
-                  compact
-                />
+                <div className="dock-label-with-help">
+                  <label className="dock-ai-settings-label" htmlFor="dock-voice-select">
+                    {copy.settings.fields.voice}
+                  </label>
+                  <HelpTooltip
+                    content={settingsHelp.fields.voice}
+                    ariaLabel={settingsHelp.iconAriaLabel}
+                  />
+                </div>
+                <div className="voice-picker voice-picker-dock" ref={voicePickerRef}>
+                  <button
+                    id="dock-voice-select"
+                    type="button"
+                    className="voice-picker-trigger"
+                    disabled={connectSetupLocked}
+                    onClick={() => setVoicePickerOpen((state) => !state)}
+                  >
+                    <span className="voice-picker-trigger-label">
+                      {settings.api.voiceName}
+                    </span>
+                    <span className="voice-picker-trigger-caret" aria-hidden="true">
+                      v
+                    </span>
+                  </button>
+                  {voicePickerOpen ? (
+                    <div className="voice-picker-menu">
+                      {voiceOptions.map((voiceName) => (
+                        <div key={voiceName} className="voice-picker-item">
+                          <VoicePreviewButton
+                            voiceName={voiceName}
+                            disabled={connectSetupLocked}
+                            compact
+                            onError={props.onError}
+                          />
+                          <button
+                            type="button"
+                            className={
+                              voiceName === settings.api.voiceName
+                                ? "voice-picker-option active"
+                                : "voice-picker-option"
+                            }
+                            onClick={() => {
+                              setVoicePickerOpen(false);
+                              update((draft) => {
+                                draft.api.voiceName = voiceName;
+                                return draft;
+                              });
+                            }}
+                          >
+                            {voiceName}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
               <div
                 className={`dock-ai-settings-section ${connectSetupLocked ? "dock-ai-settings-item-locked" : ""}`}
               >
-                <label
-                  className="dock-ai-settings-label"
-                  htmlFor="dock-media-resolution-select"
-                >
-                  {copy.settings.fields.mediaResolution}
-                </label>
+                <div className="dock-label-with-help">
+                  <label
+                    className="dock-ai-settings-label"
+                    htmlFor="dock-media-resolution-select"
+                  >
+                    {copy.settings.fields.mediaResolution}
+                  </label>
+                  <HelpTooltip
+                    content={settingsHelp.fields.mediaResolution}
+                    ariaLabel={settingsHelp.iconAriaLabel}
+                  />
+                </div>
                 <select
                   id="dock-media-resolution-select"
                   value={settings.visual.mediaResolution}
@@ -397,12 +464,18 @@ export function SessionControls(props: SessionControlsProps) {
               <div
                 className={`dock-ai-settings-section ${connectSetupLocked ? "dock-ai-settings-item-locked" : ""}`}
               >
-                <label
-                  className="dock-ai-settings-label"
-                  htmlFor="dock-assistant-mode-select"
-                >
-                  {copy.callPage.assistantModeTitle}
-                </label>
+                <div className="dock-label-with-help">
+                  <label
+                    className="dock-ai-settings-label"
+                    htmlFor="dock-assistant-mode-select"
+                  >
+                    {copy.callPage.assistantModeTitle}
+                  </label>
+                  <HelpTooltip
+                    content={settingsHelp.fields.proactiveMode}
+                    ariaLabel={settingsHelp.iconAriaLabel}
+                  />
+                </div>
                 <select
                   id="dock-assistant-mode-select"
                   disabled={connectSetupLocked}
@@ -428,7 +501,13 @@ export function SessionControls(props: SessionControlsProps) {
               <div
                 className={`dock-ai-settings-switch-row ${connectSetupLocked ? "dock-ai-settings-item-locked" : ""}`}
               >
-                <span>{copy.settings.fields.allowInterruption}</span>
+                <span className="dock-label-with-help">
+                  <span>{copy.settings.fields.allowInterruption}</span>
+                  <HelpTooltip
+                    content={settingsHelp.fields.allowInterruption}
+                    ariaLabel={settingsHelp.iconAriaLabel}
+                  />
+                </span>
                 <Switch
                   checked={settings.api.allowInterruption}
                   disabled={connectSetupLocked}
@@ -444,7 +523,13 @@ export function SessionControls(props: SessionControlsProps) {
               <div
                 className={`dock-ai-settings-switch-row ${connectSetupLocked ? "dock-ai-settings-item-locked" : ""}`}
               >
-                <span>{copy.settings.fields.thinkingMode}</span>
+                <span className="dock-label-with-help">
+                  <span>{copy.settings.fields.thinkingMode}</span>
+                  <HelpTooltip
+                    content={settingsHelp.fields.thinkingMode}
+                    ariaLabel={settingsHelp.iconAriaLabel}
+                  />
+                </span>
                 <Switch
                   checked={thinkingEnabled}
                   disabled={connectSetupLocked}
@@ -455,12 +540,18 @@ export function SessionControls(props: SessionControlsProps) {
               <div
                 className={`dock-ai-settings-section ${thinkingLevelLocked ? "dock-ai-settings-item-locked" : ""}`}
               >
-                <label
-                  className="dock-ai-settings-label"
-                  htmlFor="dock-thinking-level-select"
-                >
-                  {copy.settings.fields.thinkingLevel}
-                </label>
+                <div className="dock-label-with-help">
+                  <label
+                    className="dock-ai-settings-label"
+                    htmlFor="dock-thinking-level-select"
+                  >
+                    {copy.settings.fields.thinkingLevel}
+                  </label>
+                  <HelpTooltip
+                    content={settingsHelp.fields.thinkingLevel}
+                    ariaLabel={settingsHelp.iconAriaLabel}
+                  />
+                </div>
                 <select
                   id="dock-thinking-level-select"
                   disabled={thinkingLevelLocked}
@@ -494,7 +585,13 @@ export function SessionControls(props: SessionControlsProps) {
               <div
                 className={`dock-ai-settings-switch-row ${thinkingBudgetLocked ? "dock-ai-settings-item-locked" : ""}`}
               >
-                <span>{copy.settings.fields.thinkingBudget}</span>
+                <span className="dock-label-with-help">
+                  <span>{copy.settings.fields.thinkingBudget}</span>
+                  <HelpTooltip
+                    content={settingsHelp.fields.thinkingBudget}
+                    ariaLabel={settingsHelp.iconAriaLabel}
+                  />
+                </span>
                 <Switch
                   checked={customThinkingBudget}
                   disabled={thinkingBudgetLocked}
@@ -543,7 +640,13 @@ export function SessionControls(props: SessionControlsProps) {
               <div
                 className={`dock-ai-settings-switch-row ${connectSetupLocked ? "dock-ai-settings-item-locked" : ""}`}
               >
-                <span>{copy.settings.fields.affectiveDialog}</span>
+                <span className="dock-label-with-help">
+                  <span>{copy.settings.fields.affectiveDialog}</span>
+                  <HelpTooltip
+                    content={settingsHelp.fields.affectiveDialog}
+                    ariaLabel={settingsHelp.iconAriaLabel}
+                  />
+                </span>
                 <Switch
                   checked={settings.api.enableAffectiveDialog}
                   disabled={connectSetupLocked}

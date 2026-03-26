@@ -28,11 +28,15 @@ export function TranscriptPanel({ entries, composer }: TranscriptPanelProps) {
   const [expandedThoughts, setExpandedThoughts] = useState<Record<string, boolean>>({});
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyAutoScrollEnabled, setHistoryAutoScrollEnabled] = useState(true);
+  const [enteringMessageId, setEnteringMessageId] = useState<string | null>(null);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [latestVisibleChars, setLatestVisibleChars] = useState(0);
   const historyThreadRef = useRef<HTMLDivElement>(null);
 
   const latestMessage = displayMessages.at(-1) ?? null;
   const previousMessage =
     displayMessages.length > 1 ? displayMessages[displayMessages.length - 2] : null;
+  const latestText = latestMessage?.text ?? "";
 
   const labels = useMemo(
     () =>
@@ -79,6 +83,80 @@ export function TranscriptPanel({ entries, composer }: TranscriptPanelProps) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [historyOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setPrefersReducedMotion(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => {
+      media.removeEventListener("change", update);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!latestMessage) {
+      setEnteringMessageId(null);
+      return;
+    }
+    setEnteringMessageId(latestMessage.id);
+    const timeout = window.setTimeout(() => {
+      setEnteringMessageId((current) =>
+        current === latestMessage.id ? null : current
+      );
+    }, 560);
+    return () => window.clearTimeout(timeout);
+  }, [latestMessage?.id]);
+
+  useEffect(() => {
+    if (!latestMessage) {
+      setLatestVisibleChars(0);
+      return;
+    }
+
+    const targetLength = latestText.length;
+    if (targetLength === 0 || prefersReducedMotion) {
+      setLatestVisibleChars(targetLength);
+      return;
+    }
+
+    const charsPerSecond = 28;
+    setLatestVisibleChars(0);
+    const startedAt = performance.now();
+    let frameId = 0;
+
+    const step = (now: number) => {
+      const elapsed = Math.max(0, now - startedAt);
+      const nextChars = Math.min(
+        targetLength,
+        Math.ceil((elapsed / 1000) * charsPerSecond)
+      );
+      setLatestVisibleChars((current) =>
+        current === nextChars ? current : nextChars
+      );
+      if (nextChars < targetLength) {
+        frameId = window.requestAnimationFrame(step);
+      }
+    };
+
+    frameId = window.requestAnimationFrame(step);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [latestMessage?.id, latestText, prefersReducedMotion]);
+
+  const animatedLatestText = useMemo(() => {
+    if (!latestMessage) {
+      return "";
+    }
+    if (prefersReducedMotion || latestText.length === 0) {
+      return latestText;
+    }
+    return latestText.slice(0, latestVisibleChars);
+  }, [latestMessage, latestText, latestVisibleChars, prefersReducedMotion]);
 
   function openHistory(): void {
     setHistoryAutoScrollEnabled(true);
@@ -139,7 +217,7 @@ export function TranscriptPanel({ entries, composer }: TranscriptPanelProps) {
                 type="button"
                 className={`transcript-focus-card transcript-focus-card-current${
                   latestMessage.thoughtText ? " is-thought" : ""
-                }`}
+                }${latestMessage.id === enteringMessageId ? " is-entering" : ""}`}
                 onClick={openHistory}
                 aria-label={labels.openHistory}
               >
@@ -155,7 +233,7 @@ export function TranscriptPanel({ entries, composer }: TranscriptPanelProps) {
                     </div>
                   ) : null}
                   <p className="transcript-message-text">
-                    {latestMessage.text || labels.waitingAnswer}
+                    {animatedLatestText || labels.waitingAnswer}
                   </p>
                 </div>
               </button>
@@ -190,7 +268,7 @@ export function TranscriptPanel({ entries, composer }: TranscriptPanelProps) {
                     key={message.id}
                     className={`transcript-message transcript-message-${message.speaker} is-final${
                       message.thoughtText ? " is-thought" : ""
-                    }`}
+                    }${message.id === enteringMessageId ? " is-entering" : ""}`}
                   >
                     <div className="transcript-message-meta">
                       <span>{copy.transcript.speaker[message.speaker]}</span>
@@ -216,7 +294,9 @@ export function TranscriptPanel({ entries, composer }: TranscriptPanelProps) {
                         </div>
                       ) : null}
                       <p className="transcript-message-text">
-                        {message.text || labels.waitingAnswer}
+                        {message.id === latestMessage?.id
+                          ? animatedLatestText || labels.waitingAnswer
+                          : message.text || labels.waitingAnswer}
                       </p>
                     </div>
                   </div>

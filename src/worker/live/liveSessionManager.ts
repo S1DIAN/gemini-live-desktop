@@ -294,6 +294,7 @@ export class LiveSessionManager {
   private connectConfigLocked = false;
   private waitingForInput = false;
   private manualDisconnect = false;
+  private disconnectInProgress = false;
   private userSpeaking = false;
   private modelSpeaking = false;
   private userSpeechResetTimer: NodeJS.Timeout | null = null;
@@ -323,6 +324,7 @@ export class LiveSessionManager {
     effectiveConfig: EffectiveRuntimeConfig
   ): Promise<void> {
     this.manualDisconnect = false;
+    this.disconnectInProgress = false;
     this.connectConfigLocked = true;
     this.connectRequest = request;
     this.effectiveConfig = effectiveConfig;
@@ -362,6 +364,10 @@ export class LiveSessionManager {
   }
 
   async disconnect(mode: DisconnectMode = "pause"): Promise<void> {
+    if (this.disconnectInProgress) {
+      return;
+    }
+    this.disconnectInProgress = true;
     this.manualDisconnect = true;
     this.reconnectManager.reset();
     const now = Date.now();
@@ -379,18 +385,28 @@ export class LiveSessionManager {
     this.modelThoughtBuffers.clear();
     this.autonomousModelTranscriptBuffer = "";
     this.autonomousModelThoughtBuffer = "";
+    this.waitingForInput = false;
+    this.modelSpeaking = false;
     this.clearUserSpeechActivity();
+    this.emit({ type: "playback-clear" });
     this.emitState("disconnecting");
-    this.adapter?.signalAudioStreamEnd();
-    await this.adapter?.disconnect();
-    this.adapter = null;
-    if (mode === "terminate") {
-      this.clearSessionContinuationState();
+    try {
+      this.adapter?.signalAudioStreamEnd();
+      await this.adapter?.disconnect();
+      this.adapter = null;
+      if (mode === "terminate") {
+        this.clearSessionContinuationState();
+      }
+      this.emitState("disconnected");
+    } finally {
+      this.disconnectInProgress = false;
     }
-    this.emitState("disconnected");
   }
 
   sendText(request: WorkerTextRequest): void {
+    if (this.manualDisconnect || this.disconnectInProgress) {
+      return;
+    }
     if (request.source === "proactive_hidden_hint") {
       this.pendingProactiveTriggers.push(Date.now());
     }
@@ -532,6 +548,9 @@ export class LiveSessionManager {
   }
 
   handleMediaMessage(message: unknown): void {
+    if (this.manualDisconnect || this.disconnectInProgress) {
+      return;
+    }
     if (!this.adapter) {
       return;
     }
@@ -590,6 +609,9 @@ export class LiveSessionManager {
       this.emitState("connected");
     },
     onmessage: (message) => {
+      if (this.manualDisconnect || this.disconnectInProgress) {
+        return;
+      }
       const receivedAt = Date.now();
       if (message.setupComplete?.sessionId) {
         this.sessionId = message.setupComplete.sessionId;

@@ -2,6 +2,7 @@ import type {
   PreviewVoicePayload,
   VoicePreviewResult
 } from "@shared/types/ipc";
+import { parsePcmSampleRate } from "./pcm16ChunkDecoder";
 
 export type VoicePreviewStatus = "idle" | "loading" | "playing" | "paused";
 
@@ -14,7 +15,7 @@ export interface VoicePreviewState {
 type VoicePreviewListener = (state: VoicePreviewState) => void;
 
 interface CachedVoicePreview {
-  audioBase64: string;
+  bytes: Uint8Array;
   mimeType: string;
 }
 
@@ -22,7 +23,9 @@ class VoicePreviewPlayer {
   private readonly listeners = new Set<VoicePreviewListener>();
   private readonly cache = new Map<string, CachedVoicePreview>();
   private audio: HTMLAudioElement | null = null;
+  private objectUrl: string | null = null;
   private requestToken = 0;
+  private volume = 1;
   private state: VoicePreviewState = {
     status: "idle",
     voiceName: null,
@@ -39,6 +42,14 @@ class VoicePreviewPlayer {
 
   getState(): VoicePreviewState {
     return this.state;
+  }
+
+  setVolume(value: number): void {
+    const clamped = Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1;
+    this.volume = clamped;
+    if (this.audio) {
+      this.audio.volume = clamped;
+    }
   }
 
   async togglePreview(payload: PreviewVoicePayload): Promise<void> {
@@ -85,7 +96,11 @@ class VoicePreviewPlayer {
         return;
       }
 
-      this.audio.src = `data:${result.mimeType};base64,${result.audioBase64}`;
+      this.releaseObjectUrl();
+      const blobBytes = Uint8Array.from(result.bytes);
+      const blob = new Blob([blobBytes], { type: result.mimeType });
+      this.objectUrl = URL.createObjectURL(blob);
+      this.audio.src = this.objectUrl;
       this.audio.currentTime = 0;
       await this.audio.play();
       this.setState({
@@ -132,8 +147,15 @@ class VoicePreviewPlayer {
     payload: PreviewVoicePayload
   ): Promise<CachedVoicePreview> {
     const response: VoicePreviewResult = await window.appApi.live.previewVoice(payload);
+    if (/^audio\/pcm/i.test(response.mimeType) || /^audio\/l16/i.test(response.mimeType)) {
+      const sampleRate = parsePcmSampleRate(response.mimeType) ?? 24000;
+      return {
+        bytes: pcm16ToWavBytes(base64ToBytes(response.audioBase64), sampleRate),
+        mimeType: "audio/wav"
+      };
+    }
     return {
-      audioBase64: response.audioBase64,
+      bytes: base64ToBytes(response.audioBase64),
       mimeType: response.mimeType
     };
   }
@@ -143,6 +165,7 @@ class VoicePreviewPlayer {
       return;
     }
     this.audio = new Audio();
+    this.audio.volume = this.volume;
     this.audio.addEventListener("ended", () => {
       this.setState({
         status: "idle",
@@ -160,6 +183,7 @@ class VoicePreviewPlayer {
     this.audio.currentTime = 0;
     this.audio.removeAttribute("src");
     this.audio.load();
+    this.releaseObjectUrl();
   }
 
   private setState(nextState: VoicePreviewState): void {
@@ -167,6 +191,14 @@ class VoicePreviewPlayer {
     for (const listener of this.listeners) {
       listener(this.state);
     }
+  }
+
+  private releaseObjectUrl(): void {
+    if (!this.objectUrl) {
+      return;
+    }
+    URL.revokeObjectURL(this.objectUrl);
+    this.objectUrl = null;
   }
 }
 
@@ -179,6 +211,43 @@ function asErrorMessage(error: unknown): string {
     return error.message;
   }
   return String(error);
+}
+
+function pcm16ToWavBytes(pcmBytes: Uint8Array, sampleRate: number): Uint8Array {
+  const wavBytes = new Uint8Array(44 + pcmBytes.byteLength);
+  const view = new DataView(wavBytes.buffer);
+  const byteRate = sampleRate * 2;
+
+  writeAscii(view, 0, "RIFF");
+  view.setUint32(4, 36 + pcmBytes.byteLength, true);
+  writeAscii(view, 8, "WAVE");
+  writeAscii(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeAscii(view, 36, "data");
+  view.setUint32(40, pcmBytes.byteLength, true);
+  wavBytes.set(pcmBytes, 44);
+  return wavBytes;
+}
+
+function writeAscii(view: DataView, offset: number, value: string): void {
+  for (let i = 0; i < value.length; i += 1) {
+    view.setUint8(offset + i, value.charCodeAt(i));
+  }
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const output = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    output[index] = binary.charCodeAt(index);
+  }
+  return output;
 }
 
 export const voicePreviewPlayer = new VoicePreviewPlayer();
