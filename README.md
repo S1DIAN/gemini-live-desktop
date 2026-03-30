@@ -3,35 +3,26 @@
 > ⚠️ This is an unofficial desktop client for Google Gemini Live.
 > This project is not affiliated with, endorsed by, or sponsored by Google.
 
-Windows-only Electron desktop client for Gemini Live with secure key handling, realtime media controls (voice/camera/screen), diagnostics export, and proactive commentary modes.
+Gemini Live Desktop MVP is a Windows desktop app for running real-time Gemini Live sessions in one place. It is designed for people who want voice-first conversations, optional camera/screen context, and clear diagnostics when tuning reliability and latency.
 
-## Highlights
+## Why This Desktop App
 
-- Single-user local desktop app for Windows.
-- Encrypted Gemini API key storage in the main process.
-- API key settings use a single inline field with auto-save (paste/typing/blur) and `Delete`.
-- Microphone, camera, and screen capture with binary worker transport.
-- Turn latency telemetry, diagnostics export, and turn-final model transcript rendering.
-- Turn-final model transcript rendering with API-native thought metadata (`thought`) for collapsible "thinking" UI.
-- Chat-style transcript with compact dock-anchored camera/screen previews.
-- Latest transcript card now enters with a soft motion and reveals new text progressively (typewriter-style), with reduced-motion fallback.
-- Dock-level quick AI settings panel (gear) for model, voice, assistant mode and thinking controls.
-- Model selector (`gemini 2.5 flash native audio` / `gemini 3.1 flash live preview`) is available in both Settings and the dock quick AI panel.
-- Voice selector uses a dropdown list where each prebuilt voice has its own inline `Play`/`Pause` preview button.
-- Voice preview requests now cancel stale in-flight synthesis when you switch voices quickly and reuse cached previews for instant repeat playback.
-- Connect-time interruption control (`Allow Interruption`) to choose whether user speech can cut off model audio responses.
-- Sidebar language switcher (`English`/`Russian`) remains pinned at the bottom of the left column.
-- `Pause` preserves resumable session state; `Disconnect` resets session state and clears renderer chat history.
-- User-triggered `Pause` and `Disconnect` hard-stop local playback/capture immediately while transport teardown finishes in background.
-- English and Russian UI with runtime switching.
-- Pure and assisted proactive modes with capability normalization.
-- Thinking configuration with explicit `off` / `auto` / `custom` modes, budget range guidance, thought-summary toggle and thinking-level selection.
-- Runtime model-profile normalization automatically applies model-specific capability rules (for example, `gemini 3.1 flash live preview` forces proactive and affective features off).
-- Worker lifecycle handling, reconnect support, and session resumption.
-- Settings edits are autosaved shortly after changes; no manual "Save Settings" action is required.
-- Optional live timing side panel on the Call page, driven by diagnostics checkpoint events for quick latency breakdowns plus a network ping estimate from periodic TCP probe to Gemini API endpoint (`generativelanguage.googleapis.com:443`).
-- In proactive assistant modes (`pure`/`assisted`), while model audio is playing, visual frame upload is temporarily deferred (with a short resume delay) so proactive commentary avoids overlapping turn cascades.
-- Proactive commentary behavior includes configurable cooldown (`Max Autonomous Frequency`) and required significant-frame streak (`Significant Frames Before Comment`) to reduce noisy/autonomous chatter.
+Я решил сделать этот desktop-клиент, потому что в Google AI Studio на тот момент у меня нормально не работал проактивный режим. Плюс не хватало метрик, чтобы понять, что именно ломается и почему. В своём приложении я сделал более гибкие настройки и более прозрачный контроль поведения live-сессии, чтобы можно было точнее настраивать проактивность и разбирать проблемы в работе.
+
+## Model Options
+
+- `gemini-2.5-flash-native-audio-preview-12-2025` (`Gemini 2.5 Flash Native Audio`) is the default profile for native-audio conversations.
+- `gemini-3.1-flash-live-preview` (`Gemini 3.1 Flash Live Preview`) is the newest supported live profile in this app.
+
+## What This App Gives You
+
+- A local single-user desktop client with encrypted Gemini API key storage.
+- Quick model switching between `Gemini 2.5 Flash Native Audio` and the newer `Gemini 3.1 Flash Live Preview`.
+- Real-time session controls for microphone, camera, screen sharing, and interruption behavior.
+- Chat-style transcript UI with turn-final model responses and optional collapsible thinking metadata.
+- Fast runtime tuning for model, voice, assistant mode, and thinking settings (with autosave).
+- Diagnostics tooling for reconnect issues, turn latency checkpoints, and exportable session logs.
+- Runtime language switching (`English`/`Russian`) and resumable `Pause`/full-reset `Disconnect` flows.
 
 ## Tech Stack
 
@@ -110,6 +101,14 @@ npm run dist:win
 - `Pause` preserves resumable state; `Disconnect` starts a fresh session next time.
 - Renderer language is stored locally and applied as a speech-language override on the next connect.
 - Default voice list uses Gemini TTS voice names.
+
+## Not Implemented Yet (Possible Next Steps)
+
+- Live API tools/function calling integration is not wired yet (`tools` in connect config, tool-call handling, and `sendToolResponse` flow).
+- Manual VAD signaling is not wired end-to-end yet (`activityStart` / `activityEnd`); automatic activity detection remains active.
+- Only prebuilt voices are supported in session speech config; replicated/custom voice and multi-speaker voice paths are not implemented.
+- Advanced generation controls are not exposed in app settings yet (`temperature`, `topP`, `topK`, `maxOutputTokens`, `seed`).
+- Speech-language options in runtime settings are currently limited to `en` and `ru`.
 
 ## License
 
