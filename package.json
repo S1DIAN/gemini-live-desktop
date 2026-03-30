@@ -1,7 +1,7 @@
 {
-  "name": "gemini-live-desktop-mvp",
+  "name": "gemini-live-desktop",
   "version": "0.1.0",
-  "description": "Windows-only Electron desktop client for Gemini Live MVP",
+  "description": "Windows-only Electron desktop client for Gemini Live",
   "main": "dist/main/app.js",
   "author": "Codex",
   "license": "MIT",
@@ -40,8 +40,8 @@
     "vitest": "^4.1.0"
   },
   "build": {
-    "appId": "local.geminilive.desktop.mvp",
-    "productName": "Gemini Live Desktop MVP",
+    "appId": "local.geminilive.desktop",
+    "productName": "Gemini Live Desktop",
     "files": [
       "dist/**/*",
       "package.json"

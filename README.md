@@ -1,13 +1,13 @@
-﻿# Gemini Live Desktop MVP
+﻿# Gemini Live Desktop
 
 > ⚠️ This is an unofficial desktop client for Google Gemini Live.
 > This project is not affiliated with, endorsed by, or sponsored by Google.
 
-Gemini Live Desktop MVP is a Windows desktop app for running real-time Gemini Live sessions in one place. It is designed for people who want voice-first conversations, optional camera/screen context, and clear diagnostics when tuning reliability and latency.
+Gemini Live Desktop is a Windows desktop app for running real-time Gemini Live sessions in one place. It is designed for people who want voice-first conversations, optional camera/screen context, and clear diagnostics when tuning reliability and latency.
 
 ## Why This Desktop App
 
-Я решил сделать этот desktop-клиент, потому что в Google AI Studio на тот момент у меня нормально не работал проактивный режим. Плюс не хватало метрик, чтобы понять, что именно ломается и почему. В своём приложении я сделал более гибкие настройки и более прозрачный контроль поведения live-сессии, чтобы можно было точнее настраивать проактивность и разбирать проблемы в работе.
+I built this desktop client because, at that time, proactive mode did not work reliably for me in Google AI Studio. It was also hard to track what was failing and why due to limited diagnostics visibility. In this app, I added more flexible controls and clearer insight into live-session behavior, so proactive flows can be tuned and debugged more precisely.
 
 ## Model Options
 

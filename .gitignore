@@ -1,4 +1,4 @@
-node_modules/
+﻿node_modules/
 
 # Build artifacts
 dist/
@@ -41,4 +41,4 @@ coverage/
 Thumbs.db
 Desktop.ini
 
-gemini_live_desktop_mvp_tz.md
+gemini_live_desktop_tz.md
