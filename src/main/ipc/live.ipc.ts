@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+﻿import { ipcMain } from "electron";
 import net from "node:net";
 import { GoogleGenAI, Modality } from "@google/genai";
 import {
@@ -20,16 +20,25 @@ import type { WorkerConnectRequest } from "../../shared/types/live";
 import type { VoicePreviewResult } from "../../shared/types/ipc";
 
 const VOICE_PREVIEW_MODEL = "gemini-2.5-flash-preview-tts";
-const VOICE_PREVIEW_PROMPTS = {
-  en: "Hi. This is a short preview of this voice.",
-  ru: "Привет. Это короткий тест выбранного голоса."
+const VOICE_PREVIEW_CACHE_CAPACITY = 64;
+const VOICE_PREVIEW_TRANSCRIPTS = {
+  en: "Have a wonderful day!",
+  ru: "\u0425\u043e\u0440\u043e\u0448\u0435\u0433\u043e \u0434\u043d\u044f!"
 } as const;
+
+interface VoicePreviewInFlightRequest {
+  cacheKey: string;
+  controller: AbortController;
+  promise: Promise<VoicePreviewResult>;
+}
 
 export function registerLiveIpc(
   repository: SettingsRepository,
   secureStorage: SecureKeyStorage,
   workerLauncher: LiveWorkerLauncher
 ): void {
+  const voicePreviewManager = createVoicePreviewManager();
+
   ipcMain.handle("live:connect", async (_event, payload) => {
     const connectPayload = connectPayloadSchema.parse(payload ?? {});
     const apiKey = await secureStorage.getPlaintext();
@@ -57,7 +66,12 @@ export function registerLiveIpc(
     if (!apiKey) {
       throw new Error("No API key saved");
     }
-    return previewVoice(apiKey, request.voiceName, request.speechLanguageCode);
+
+    return voicePreviewManager.preview(
+      apiKey,
+      request.voiceName,
+      request.speechLanguageCode
+    );
   });
   ipcMain.handle("live:send-text", (_event, payload) =>
     workerLauncher.sendText(sendTextPayloadSchema.parse(payload))
@@ -73,19 +87,131 @@ export function registerLiveIpc(
   );
 }
 
+function createVoicePreviewManager(): {
+  preview: (
+    apiKey: string,
+    voiceName: string,
+    speechLanguageCode?: "en" | "ru"
+  ) => Promise<VoicePreviewResult>;
+} {
+  const cache = new Map<string, VoicePreviewResult>();
+  let activeApiKey: string | null = null;
+  let aiClient: GoogleGenAI | null = null;
+  let inFlight: VoicePreviewInFlightRequest | null = null;
+
+  const ensureClient = (apiKey: string): GoogleGenAI => {
+    if (!aiClient || activeApiKey !== apiKey) {
+      activeApiKey = apiKey;
+      aiClient = new GoogleGenAI({
+        apiKey,
+        apiVersion: "v1beta"
+      });
+      cache.clear();
+      if (inFlight) {
+        inFlight.controller.abort();
+        inFlight = null;
+      }
+    }
+    return aiClient;
+  };
+
+  const preview = async (
+    apiKey: string,
+    voiceName: string,
+    speechLanguageCode: "en" | "ru" = "en"
+  ): Promise<VoicePreviewResult> => {
+    const cacheKey = toVoicePreviewCacheKey(voiceName, speechLanguageCode);
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    if (inFlight?.cacheKey === cacheKey) {
+      return inFlight.promise;
+    }
+
+    if (inFlight) {
+      inFlight.controller.abort();
+    }
+
+    const controller = new AbortController();
+    const ai = ensureClient(apiKey);
+    const promise = previewVoice(ai, voiceName, speechLanguageCode, controller.signal)
+      .then((result) => {
+        cache.set(cacheKey, result);
+        while (cache.size > VOICE_PREVIEW_CACHE_CAPACITY) {
+          const oldestKey = cache.keys().next().value;
+          if (oldestKey === undefined) {
+            break;
+          }
+          cache.delete(oldestKey);
+        }
+        return result;
+      })
+      .finally(() => {
+        if (inFlight?.promise === promise) {
+          inFlight = null;
+        }
+      });
+
+    inFlight = {
+      cacheKey,
+      controller,
+      promise
+    };
+    return promise;
+  };
+
+  return { preview };
+}
+
 async function previewVoice(
-  apiKey: string,
+  ai: GoogleGenAI,
   voiceName: string,
-  speechLanguageCode: "en" | "ru" = "en"
+  speechLanguageCode: "en" | "ru" = "en",
+  abortSignal?: AbortSignal
 ): Promise<VoicePreviewResult> {
-  const ai = new GoogleGenAI({
-    apiKey,
-    apiVersion: "v1beta"
-  });
+  let audioPart = (
+    await synthesizePreview(
+      ai,
+      voiceName,
+      VOICE_PREVIEW_TRANSCRIPTS[speechLanguageCode],
+      abortSignal
+    )
+  ).audioPart;
+
+  if (!audioPart && speechLanguageCode !== "en") {
+    audioPart = (
+      await synthesizePreview(ai, voiceName, VOICE_PREVIEW_TRANSCRIPTS.en, abortSignal)
+    ).audioPart;
+  }
+
+  if (!audioPart?.inlineData?.data) {
+    throw new Error("Gemini API returned no audio for preview");
+  }
+  const audioBase64 = audioPart.inlineData.data;
+
+  return {
+    voiceName,
+    model: VOICE_PREVIEW_MODEL,
+    mimeType: audioPart.inlineData?.mimeType ?? "audio/pcm;rate=24000",
+    audioBase64
+  };
+}
+
+async function synthesizePreview(
+  ai: GoogleGenAI,
+  voiceName: string,
+  text: string,
+  abortSignal?: AbortSignal
+): Promise<{
+  audioPart: { inlineData?: { data?: string; mimeType?: string } } | null;
+}> {
   const response = await ai.models.generateContent({
     model: VOICE_PREVIEW_MODEL,
-    contents: VOICE_PREVIEW_PROMPTS[speechLanguageCode],
+    contents: [{ parts: [{ text }] }],
     config: {
+      abortSignal,
       responseModalities: [Modality.AUDIO],
       speechConfig: {
         voiceConfig: {
@@ -97,19 +223,21 @@ async function previewVoice(
     }
   });
 
-  const parts = response.candidates?.[0]?.content?.parts ?? [];
-  const audioPart = parts.find((part) => part.inlineData?.data);
-  const audioBase64 = audioPart?.inlineData?.data;
-  if (!audioBase64) {
-    throw new Error("Gemini API returned no audio for preview");
+  for (const candidate of response.candidates ?? []) {
+    for (const part of candidate.content?.parts ?? []) {
+      if (part.inlineData?.data) {
+        return { audioPart: part };
+      }
+    }
   }
+  return { audioPart: null };
+}
 
-  return {
-    voiceName,
-    model: VOICE_PREVIEW_MODEL,
-    mimeType: audioPart.inlineData?.mimeType ?? "audio/pcm;rate=24000",
-    audioBase64
-  };
+function toVoicePreviewCacheKey(
+  voiceName: string,
+  speechLanguageCode: "en" | "ru"
+): string {
+  return `${speechLanguageCode}:${voiceName}`;
 }
 
 function probeNetworkLatency(
@@ -151,6 +279,7 @@ function mapSettingsToWorkerRequest(
     settings: {
       model: settings.api.model,
       apiVersion: getAutoApiVersion(
+        settings.api.model,
         settings.api.proactiveMode,
         settings.api.enableAffectiveDialog
       ),

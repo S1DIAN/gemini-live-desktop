@@ -24,6 +24,7 @@ class VoicePreviewPlayer {
   private readonly cache = new Map<string, CachedVoicePreview>();
   private audio: HTMLAudioElement | null = null;
   private objectUrl: string | null = null;
+  private activePreviewKey: string | null = null;
   private requestToken = 0;
   private volume = 1;
   private state: VoicePreviewState = {
@@ -57,9 +58,10 @@ class VoicePreviewPlayer {
     if (!this.audio) {
       return;
     }
+    const requestedKey = toCacheKey(payload);
 
     if (
-      this.state.voiceName === payload.voiceName &&
+      this.activePreviewKey === requestedKey &&
       this.audio.src &&
       this.state.status !== "loading"
     ) {
@@ -86,11 +88,10 @@ class VoicePreviewPlayer {
     });
 
     try {
-      const key = toCacheKey(payload);
-      const cached = this.cache.get(key);
+      const cached = this.cache.get(requestedKey);
       const result = cached ?? (await this.fetchPreview(payload));
       if (!cached) {
-        this.cache.set(key, result);
+        this.cache.set(requestedKey, result);
       }
       if (token !== this.requestToken) {
         return;
@@ -100,6 +101,7 @@ class VoicePreviewPlayer {
       const blobBytes = Uint8Array.from(result.bytes);
       const blob = new Blob([blobBytes], { type: result.mimeType });
       this.objectUrl = URL.createObjectURL(blob);
+      this.activePreviewKey = requestedKey;
       this.audio.src = this.objectUrl;
       this.audio.currentTime = 0;
       await this.audio.play();
@@ -179,6 +181,7 @@ class VoicePreviewPlayer {
     if (!this.audio) {
       return;
     }
+    this.activePreviewKey = null;
     this.audio.pause();
     this.audio.currentTime = 0;
     this.audio.removeAttribute("src");

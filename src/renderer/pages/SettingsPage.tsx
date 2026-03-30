@@ -9,6 +9,15 @@ import {
   THINKING_BUDGET_MIN,
   type ThinkingMode
 } from "@shared/types/settings";
+import {
+  GEMINI_2_5_FLASH_NATIVE_AUDIO_MODEL,
+  GEMINI_3_1_FLASH_LIVE_PREVIEW_MODEL,
+  getLiveModelDisplayName,
+  resolveLiveModelProfile,
+  resolveLiveModelPreset,
+  resolveModelFromPreset,
+  type LiveModelPreset
+} from "@shared/types/liveModelProfile";
 import { PageHeader } from "@renderer/components/layout/PageHeader";
 import { SectionCard } from "@renderer/components/layout/SectionCard";
 import { SettingsRow } from "@renderer/components/layout/SettingsRow";
@@ -20,7 +29,7 @@ type SettingsSectionKey = "api" | "audio" | "visual" | "behavior" | "diagnostics
 export function SettingsPage() {
   const { settings, update, apiKeyState, setApiKey, clearApiKey } =
     useSettingsStore();
-  const { copy } = useI18n();
+  const { copy, locale } = useI18n();
   const sessionStatus = useSessionStore((state) => state.status);
   const retainedSessionLock = useSessionStore(
     (state) => state.connectConfigLocked
@@ -37,6 +46,92 @@ export function SettingsPage() {
   const voicePickerRef = useRef<HTMLDivElement | null>(null);
   const settingsCopy = copy.settings;
   const settingsHelp = settingsCopy.help;
+  const modelProfile = useMemo(
+    () => resolveLiveModelProfile(settings.api.model),
+    [settings.api.model]
+  );
+  const modelPreset = useMemo(
+    () => resolveLiveModelPreset(settings.api.model),
+    [settings.api.model]
+  );
+  const modelPresetLabel =
+    locale === "ru" ? "Пресет модели" : "Model Preset";
+  const modelPresetHelpText =
+    locale === "ru"
+      ? "Быстрый выбор совместимого профиля. Custom оставляет поле модели редактируемым вручную."
+      : "Quick selection of a compatible profile. Custom keeps model input fully manual.";
+  const modelPresetOptions: { value: LiveModelPreset; label: string }[] = useMemo(
+    () => [
+      {
+        value: "gemini_2_5",
+        label: "Gemini 2.5 Flash Native Audio"
+      },
+      {
+        value: "gemini_3_1",
+        label: "Gemini 3.1 Flash Live Preview"
+      },
+      {
+        value: "custom",
+        label: locale === "ru" ? "Custom (свой)" : "Custom"
+      }
+    ],
+    [locale]
+  );
+  const proactiveModelUnsupported = !modelProfile.supportsProactiveAudio;
+  const affectiveModelUnsupported = !modelProfile.supportsAffectiveDialog;
+  const thinkingBudgetSupported = modelProfile.thinkingPolicy === "budget_primary";
+  const displayedThinkingLevel =
+    settings.api.thinkingMode === "off"
+      ? "model_default"
+      : settings.api.thinkingLevel;
+  const proactiveUnsupportedReason = proactiveModelUnsupported
+    ? locale === "ru"
+      ? `Для модели ${settings.api.model} проактивный режим недоступен.`
+      : `Proactive mode is unavailable for model ${settings.api.model}.`
+    : "";
+  const affectiveUnsupportedReason = affectiveModelUnsupported
+    ? locale === "ru"
+      ? `Для модели ${settings.api.model} аффективный диалог недоступен.`
+      : `Affective dialog is unavailable for model ${settings.api.model}.`
+    : "";
+
+  const thinkingBudgetUnsupportedReason = !thinkingBudgetSupported
+    ? locale === "ru"
+      ? `Для модели ${settings.api.model} бюджет размышления не настраивается вручную: используйте "Уровень размышления".`
+      : `Thinking budget is not manually configurable for model ${settings.api.model}. Use Thinking Level instead.`
+    : "";
+
+  const modelSelectorOptions = [
+    {
+      value: GEMINI_2_5_FLASH_NATIVE_AUDIO_MODEL,
+      label: getLiveModelDisplayName(GEMINI_2_5_FLASH_NATIVE_AUDIO_MODEL)
+    },
+    {
+      value: GEMINI_3_1_FLASH_LIVE_PREVIEW_MODEL,
+      label: getLiveModelDisplayName(GEMINI_3_1_FLASH_LIVE_PREVIEW_MODEL)
+    }
+  ] as const;
+  const proactiveUnavailableText = proactiveModelUnsupported
+    ? locale === "ru"
+      ? "Проактивный режим недоступен для Gemini 3.1 Flash. Переключитесь на Gemini 2.5."
+      : "Proactive mode is unavailable for Gemini 3.1 Flash. Switch to Gemini 2.5."
+    : undefined;
+  const affectiveUnavailableText = affectiveModelUnsupported
+    ? locale === "ru"
+      ? "Аффективный диалог недоступен для Gemini 3.1 Flash. Переключитесь на Gemini 2.5."
+      : "Affective dialog is unavailable for Gemini 3.1 Flash. Switch to Gemini 2.5."
+    : undefined;
+
+  const proactiveWarningText = proactiveModelUnsupported
+    ? locale === "ru"
+      ? "Проактивный режим недоступен для gemini 3.1 flash live preview. Переключитесь на gemini 2.5 flash native audio."
+      : "Proactive mode is unavailable for gemini 3.1 flash live preview. Switch to gemini 2.5 flash native audio."
+    : proactiveUnavailableText;
+  const affectiveWarningText = affectiveModelUnsupported
+    ? locale === "ru"
+      ? "Аффективный диалог недоступен для gemini 3.1 flash live preview. Переключитесь на gemini 2.5 flash native audio."
+      : "Affective dialog is unavailable for gemini 3.1 flash live preview. Switch to gemini 2.5 flash native audio."
+    : affectiveUnavailableText;
 
   const voiceOptions = useMemo(() => {
     const base = Array.from(LIVE_PREBUILT_VOICE_NAMES) as string[];
@@ -206,7 +301,7 @@ export function SettingsPage() {
               label={settingsCopy.fields.model}
               helpText={settingsHelp.fields.model}
               control={
-                <input
+                <select
                   disabled={sessionConfigLocked}
                   value={settings.api.model}
                   onChange={(event) =>
@@ -215,7 +310,13 @@ export function SettingsPage() {
                       return draft;
                     })
                   }
-                />
+                >
+                  {modelSelectorOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               }
             />
             <SettingsRow
@@ -302,6 +403,7 @@ export function SettingsPage() {
             <SettingsRow
               label={settingsCopy.fields.thinkingMode}
               helpText={settingsHelp.fields.thinkingMode}
+              description={thinkingBudgetUnsupportedReason || undefined}
               control={
                 <select
                   disabled={sessionConfigLocked}
@@ -309,10 +411,21 @@ export function SettingsPage() {
                   onChange={(event) =>
                     update((draft) => {
                       const nextMode = event.target.value as ThinkingMode;
-                      draft.api.thinkingMode = nextMode;
-                      if (nextMode === "off") {
+                      const nextModelProfile = resolveLiveModelProfile(
+                        draft.api.model
+                      );
+                      const normalizedMode =
+                        nextModelProfile.thinkingPolicy === "level_primary" &&
+                        nextMode === "custom"
+                          ? "auto"
+                          : nextMode;
+                      draft.api.thinkingMode = normalizedMode;
+                      if (normalizedMode === "off") {
                         draft.api.thinkingBudget = 0;
-                      } else if (nextMode === "auto") {
+                      } else if (
+                        normalizedMode === "auto" ||
+                        nextModelProfile.thinkingPolicy === "level_primary"
+                      ) {
                         draft.api.thinkingBudget = -1;
                       } else if (draft.api.thinkingBudget < THINKING_BUDGET_MIN) {
                         draft.api.thinkingBudget = THINKING_BUDGET_MIN;
@@ -323,13 +436,15 @@ export function SettingsPage() {
                 >
                   <option value="off">{settingsCopy.options.thinkingMode.off}</option>
                   <option value="auto">{settingsCopy.options.thinkingMode.auto}</option>
-                  <option value="custom">
-                    {settingsCopy.options.thinkingMode.custom}
-                  </option>
+                  {thinkingBudgetSupported ? (
+                    <option value="custom">
+                      {settingsCopy.options.thinkingMode.custom}
+                    </option>
+                  ) : null}
                 </select>
               }
             />
-            {settings.api.thinkingMode === "custom" ? (
+            {thinkingBudgetSupported && settings.api.thinkingMode === "custom" ? (
               <SettingsRow
                 label={settingsCopy.fields.thinkingBudget}
                 helpText={settingsHelp.fields.thinkingBudget}
@@ -380,7 +495,7 @@ export function SettingsPage() {
               control={
                 <select
                   disabled={sessionConfigLocked}
-                  value={settings.api.thinkingLevel}
+                  value={displayedThinkingLevel}
                   onChange={(event) =>
                     update((draft) => {
                       draft.api.thinkingLevel = event.target.value as
@@ -640,9 +755,11 @@ export function SettingsPage() {
             <SettingsRow
               label={settingsCopy.fields.proactiveMode}
               helpText={settingsHelp.fields.proactiveMode}
+              warningText={proactiveWarningText}
+              muted={proactiveModelUnsupported}
               control={
                 <select
-                  disabled={sessionConfigLocked}
+                  disabled={sessionConfigLocked || proactiveModelUnsupported}
                   value={settings.api.proactiveMode}
                   onChange={(event) =>
                     update((draft) => {
@@ -665,10 +782,12 @@ export function SettingsPage() {
             <SettingsRow
               label={settingsCopy.fields.affectiveDialog}
               helpText={settingsHelp.fields.affectiveDialog}
+              warningText={affectiveWarningText}
+              muted={affectiveModelUnsupported}
               control={
                 <Switch
                   checked={settings.api.enableAffectiveDialog}
-                  disabled={sessionConfigLocked}
+                  disabled={sessionConfigLocked || affectiveModelUnsupported}
                   onChange={(next) =>
                     update((draft) => {
                       draft.api.enableAffectiveDialog = next;

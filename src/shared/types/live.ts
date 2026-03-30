@@ -5,6 +5,13 @@ import type {
   ThinkingLevelPreset,
   ThinkingMode
 } from "./settings";
+import type {
+  LiveModelPreset,
+  LiveSpeechLanguagePolicy,
+  LiveTextTransportPolicy,
+  LiveThinkingPolicy,
+  LiveTurnCoveragePolicy
+} from "./liveModelProfile";
 import type { DiagnosticsEvent } from "./diagnostics";
 import type { TranscriptEntry } from "./transcript";
 
@@ -37,16 +44,21 @@ export interface CapabilityNormalizationDecision {
 
 export interface EffectiveSessionSnapshot {
   model: string;
+  modelPreset: LiveModelPreset;
   apiVersion: ApiVersion;
   voiceName: string;
   allowInterruption: boolean;
   speechLanguageCode?: SpeechLanguageCode;
+  speechLanguagePolicy: LiveSpeechLanguagePolicy;
   proactiveMode: ProactiveMode;
   thinkingMode: ThinkingMode;
   thinkingBudget: number;
   thinkingIncludeThoughts: boolean;
   thinkingLevel: ThinkingLevelPreset;
+  thinkingPolicy: LiveThinkingPolicy;
+  textTransportPolicy: LiveTextTransportPolicy;
   mediaResolution: "low" | "medium" | "high";
+  turnCoveragePolicy: LiveTurnCoveragePolicy;
   proactiveAudioEnabled: boolean;
   affectiveDialogEnabled: boolean;
   contextWindowCompressionEnabled: boolean;

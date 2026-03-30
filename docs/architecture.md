@@ -19,6 +19,7 @@ The app is split into five runtime layers:
 
 - Saved plaintext API keys never leave the `main` or `worker` boundary.
 - Voice preview generation for settings UI is executed in `main` through Gemini TTS using the encrypted key; renderer receives only generated preview audio bytes.
+- Voice preview IPC keeps a bounded in-memory cache and cancels stale in-flight preview synthesis when the user switches voices quickly.
 - The live session never runs in the renderer.
 - Command IPC and streaming media transport are separate mechanisms.
 - Worker commands are delivered only after an explicit worker-ready handshake from the utility process.
@@ -27,10 +28,10 @@ The app is split into five runtime layers:
 - Malformed media payloads from message channels are dropped and logged; they must not crash the worker.
 - Screen and camera are represented as periodic JPEG frames with `latest-frame-wins`.
 - Every connect attempt must pass capability normalization before the worker opens a session.
-- Requested API version is auto-derived from session capabilities (`proactiveMode` and `enableAffectiveDialog`) before connect commands are sent.
+- Requested API version is derived from the selected live-model profile; feature-gated profiles can still upgrade to `v1alpha` when required by enabled capabilities.
 - Runtime capability normalization, not the UI, is the final authority for effective live config.
-- The current default model lives in `defaultSettings` and is `gemini-2.5-flash-native-audio-preview-12-2025`; the current default voice is `Aoede`.
-- Thinking mode is explicitly modeled as `off`/`auto`/`custom` in app settings and mapped to Live API budget as `0`/`-1`/custom budget before worker connect.
+- The current default model lives in `defaultSettings` and is `gemini-2.5-flash-native-audio-preview-12-2025`; the current default voice is `Aoede`. Supported app-level model choices are `gemini-2.5-flash-native-audio-preview-12-2025` and `gemini-3.1-flash-live-preview`.
+- Thinking mode is explicitly modeled as `off`/`auto`/`custom` in app settings; runtime mapping is model-profile aware (`2.5` remains budget-primary, `3.1` is level-primary).
 - Interruption behavior is explicitly modeled as an app setting (`allowInterruption`) and mapped to Live API `realtimeInputConfig.activityHandling` (`START_OF_ACTIVITY_INTERRUPTS` or `NO_INTERRUPTION`) before worker connect.
 - Gemini Developer API live connect keeps automatic activity detection enabled; client-side manual activity signaling (`activityStart`/`activityEnd`) is not wired yet.
 - Microphone pause events must trigger `audioStreamEnd` delivery while automatic activity detection is active to flush cached audio.
@@ -43,7 +44,7 @@ The app is split into five runtime layers:
 - User-initiated session teardown (`pause` or `terminate`) must immediately hard-stop renderer playback and local media capture before waiting for worker disconnect completion.
 - Renderer route navigation must not implicitly stop active local media capture; mic/camera/screen are runtime session controls and change only through explicit toggles or terminal session-state teardown.
 - Connect-time setup controls in the renderer are locked during active live session states (`connecting`, `connected`, `reconnecting`, `disconnecting`) and while paused session continuation is retained; realtime renderer tuning remains editable.
-- Renderer language switching controls a connect-time speech-language override (`speechConfig.languageCode`) for the next connect; it must not force reconnect during an active session.
+- Renderer language switching controls a connect-time speech-language override for the next connect when the selected model profile supports explicit language code; it must not force reconnect during an active session.
 - Selected renderer locale is stored in browser localStorage and applied immediately across all routes; it is only turned into a speech-language override on the next connect.
 - Model transcript events emitted to the renderer chat must be turn-final only (`generationComplete`/`turnComplete`) to prevent chunked model bubbles.
 - Model transcript events may include API-native thought metadata (`thought`, optional `thoughtSignature`) derived from Gemini `Part.thought`/`Part.thoughtSignature` for collapsible thinking UI.
@@ -56,32 +57,34 @@ The app is split into five runtime layers:
 - Renderer settings updates are autosaved after local edits; there is no manual save action in the Settings UI.
 - `main` validates and persists settings in a versioned JSON file.
 - Diagnostics settings include an optional `showLiveTimingPanel` renderer toggle that enables an in-call side panel fed from diagnostics checkpoint events.
-- API version in settings is auto-derived (`v1alpha` for proactive or affective features, otherwise `v1beta`) during normalization and save.
+- API version in settings is auto-derived from selected model profile and compatibility-gated features during normalization and save.
+- Settings normalization applies model-profile compatibility guards (for example, selecting `gemini-3.1-flash-live-preview` forces `proactiveMode=off` and `enableAffectiveDialog=false`).
 - Settings normalization performs a lightweight proactive-tuning migration for legacy defaults (`changeThreshold=0.22` -> `0.12`, `maxAutonomousCommentFrequencyMs=12000` -> `10000`) and applies default significant-frame streak gating for autonomous commentary.
 - Settings normalization also applies legacy thinking migration so old persisted `thinkingBudget` values map into explicit thinking mode (`off`/`auto`/`custom`) without breaking existing installs.
 - API keys are stored separately as an encrypted blob through `safeStorage`.
 - The renderer can observe key presence and a masked label, but never the saved plaintext key.
-- Voice preview requests (`Play` in voice selectors) are routed through main-process IPC, which decrypts the saved key transiently and performs a short non-live Gemini TTS call for the selected prebuilt voice.
+- Voice preview requests (`Play` in voice selectors) are routed through main-process IPC, which decrypts the saved key transiently, performs a short non-live Gemini TTS call for the selected prebuilt voice, caches successful results in memory and aborts stale in-flight preview requests.
 
 ### Localization
 
 - Renderer localization is implemented with in-process translation dictionaries (`en`, `ru`) under `src/renderer/i18n`.
 - Selected locale is persisted in renderer local storage and applied immediately across routes and components.
-- Renderer locale (`en`/`ru`) is applied as a connect-time override in live connect payloads (`speechConfig.languageCode`) without rewriting persisted settings.
+- Renderer locale (`en`/`ru`) is applied as a connect-time override in live connect payloads only when the selected model profile allows explicit `speechConfig.languageCode`, without rewriting persisted settings.
 - Runtime normalization may disable explicit `speechConfig.languageCode` for known incompatible model/language combinations to prevent reconnect loops caused by backend `Unsupported language code` closes.
 
 ### Connect Pipeline
 
 1. Renderer requests connect.
-2. Main loads persisted settings, decrypts the API key and derives the requested API version from proactive or affective settings.
+2. Main loads persisted settings, decrypts the API key and derives the requested API version from selected model profile and effective capability settings.
 3. Main forwards a connect command to the worker only after the worker-ready handshake has completed.
 4. Worker runs `CapabilityNormalizer`.
 5. If normalization fails, connect aborts before any live session is created.
 6. If normalization succeeds, worker logs the normalization decisions and effective session snapshot, builds bootstrap context, then opens the Gemini Live session.
    For Gemini API compatibility, session resumption uses the resume handle only and does not send the Vertex-only `transparent` flag.
    Live transcription uses an empty `AudioTranscriptionConfig`; Gemini Developer API live connect does not accept `languageCodes`.
-   Thinking config is sent with normalized budget plus optional thought summaries and optional thinking level (`model default` leaves level unset).
+   Thinking config is sent with profile-aware normalization: budget-primary for compatible models and level-primary for `gemini-3.1-flash-live-preview` (`model default` leaves level unset).
    Realtime input activity handling is sent from connect-time settings and can disable model interruption when user activity starts.
+   Text transport is model-profile aware: `gemini-3.1-flash-live-preview` uses realtime text input path, while legacy profiles keep mixed transport behavior.
    Manual VAD mode is normalized off in this client until `activityStart`/`activityEnd` signaling is implemented end-to-end.
    The Call page surfaces both the requested API version and the runtime effective version, plus inline error text for failed session actions.
 
@@ -102,7 +105,7 @@ The app is split into five runtime layers:
 - During manual `pause`/`terminate`, renderer playback queue is cleared immediately and worker drops late incoming model events so audio cannot continue after disconnect is initiated.
 - The worker base64-encodes only at the final SDK boundary when building Gemini blobs.
 - Renderer sends sparse voice telemetry markers (`mic_*`, `vad_*`, playback markers, `turn_aborted`) through command IPC; worker correlates them with chunk upload and server/model events.
-- With Gemini Developer API automatic activity detection enabled, there is no explicit per-turn SDK commit call for microphone turns. `client_turn_commit_sent` is therefore a diagnostic name for the local renderer/worker handoff when VAD closes a turn, while `server_turn_ack_received` is the first correlatable server message for that turn.
+- With Gemini Developer API automatic activity detection enabled, there is no explicit per-turn SDK commit call for microphone turns. `client_turn_commit_sent` is therefore a diagnostic name for the local renderer/worker handoff when VAD closes a turn, while `server_turn_ack_received` is inferred from the earliest correlatable server-side turn signal (voice-activity end, VAD EOS, waiting-for-input clear, or first model signal).
 
 ### Session And Diagnostics
 
@@ -163,17 +166,18 @@ The worker does not own UI state or browser media capture.
 - `ReconnectManager` owns retry timing and resume or fresh-session fallback.
 - `CapabilityNormalizer` owns effective config derivation and hard gating.
 - `BootstrapBuilder` owns startup and system-instruction composition.
-- Live speech output language is configured at connect time through `speechConfig.languageCode` from persisted settings, independent of bootstrap prompt text.
+- Live speech output language is configured at connect time through `speechConfig.languageCode` from persisted settings only when the selected model profile supports explicit language code, independent of bootstrap prompt text.
 - `FrameDiffService` owns screen-difference scoring.
 - `ProactiveOrchestrator` owns autonomous hint decisions only, including runtime-idle gating that accepts either server `waitingForInput` or local silence/playback state; local hinting is active for `pure` and `assisted` modes and disabled only when mode is `off`.
 - Call-page proactive evaluation applies mode-aware effective threshold tuning before orchestration (`pure` lowers threshold more aggressively than `assisted`), while autonomous comment interval follows user-configured cooldown without mode-based reduction; diagnostics include effective and user-configured tuning values for traceability.
 - Renderer `ProactivityMetricsTracker` owns proactivity metric counters, block-reason aggregation, idle/cooldown uptime accounting, and end-of-session proactivity summary emission.
+- Shared live-model profile resolver owns model-specific capability policy (API version strategy, text transport policy, thinking policy, speech-language policy, and feature support flags).
 - Renderer i18n module owns translation dictionaries and current locale state.
 - `src/main/app.ts` wires app bootstrap, lifecycle and shutdown.
 - `src/main/settingsRepository.ts` owns versioned settings persistence and normalization entry points.
 - `src/main/security/secureStorage.ts` owns encrypted API-key storage.
 - `src/main/ipc/*.ts` expose settings, live, diagnostics and display-media IPC.
-- `src/main/ipc/live.ipc.ts` also owns non-live voice preview generation (`live:preview-voice`) via Gemini TTS and returns preview audio blobs to the renderer.
+- `src/main/ipc/live.ipc.ts` also owns non-live voice preview generation (`live:preview-voice`) via Gemini TTS, including preview request cancellation/deduplication and bounded in-memory preview caching, then returns preview audio blobs to the renderer.
 - `src/main/workers/liveWorkerLauncher.ts` owns the utility-process handshake, command queueing, connect watchdog and process-tree shutdown.
 - `src/preload/bridges/*.ts` expose the minimal renderer bridge surface.
 - `src/renderer/app/routes.tsx` owns top-level navigation.

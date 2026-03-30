@@ -16,7 +16,9 @@ Windows-only Electron desktop client for Gemini Live with secure key handling, r
 - Chat-style transcript with compact dock-anchored camera/screen previews.
 - Latest transcript card now enters with a soft motion and reveals new text progressively (typewriter-style), with reduced-motion fallback.
 - Dock-level quick AI settings panel (gear) for model, voice, assistant mode and thinking controls.
+- Model selector (`gemini 2.5 flash native audio` / `gemini 3.1 flash live preview`) is available in both Settings and the dock quick AI panel.
 - Voice selector uses a dropdown list where each prebuilt voice has its own inline `Play`/`Pause` preview button.
+- Voice preview requests now cancel stale in-flight synthesis when you switch voices quickly and reuse cached previews for instant repeat playback.
 - Connect-time interruption control (`Allow Interruption`) to choose whether user speech can cut off model audio responses.
 - Sidebar language switcher (`English`/`Russian`) remains pinned at the bottom of the left column.
 - `Pause` preserves resumable session state; `Disconnect` resets session state and clears renderer chat history.
@@ -24,6 +26,7 @@ Windows-only Electron desktop client for Gemini Live with secure key handling, r
 - English and Russian UI with runtime switching.
 - Pure and assisted proactive modes with capability normalization.
 - Thinking configuration with explicit `off` / `auto` / `custom` modes, budget range guidance, thought-summary toggle and thinking-level selection.
+- Runtime model-profile normalization automatically applies model-specific capability rules (for example, `gemini 3.1 flash live preview` forces proactive and affective features off).
 - Worker lifecycle handling, reconnect support, and session resumption.
 - Settings edits are autosaved shortly after changes; no manual "Save Settings" action is required.
 - Optional live timing side panel on the Call page, driven by diagnostics checkpoint events for quick latency breakdowns plus a network ping estimate from periodic TCP probe to Gemini API endpoint (`generativelanguage.googleapis.com:443`).
@@ -101,8 +104,9 @@ npm run dist:win
 ## Notes
 
 - Default model: `gemini-2.5-flash-native-audio-preview-12-2025`.
-- API version is auto-selected from Proactive Mode and Affective Dialog settings.
-- Thinking mode maps to API budget as: `off -> 0`, `auto -> -1`, `custom -> [128..8192]` (app-side guardrails).
+- Supported models are `gemini-2.5-flash-native-audio-preview-12-2025` and `gemini-3.1-flash-live-preview`.
+- API version and capability toggles are auto-normalized by selected model profile (`gemini 3.1 flash live preview` is fixed to `v1beta` and disables proactive/affective features).
+- Thinking behavior is model-profile aware: `gemini 2.5 flash native audio` remains budget-driven, while `gemini 3.1 flash live preview` is level-first.
 - `Pause` preserves resumable state; `Disconnect` starts a fresh session next time.
 - Renderer language is stored locally and applied as a speech-language override on the next connect.
 - Default voice list uses Gemini TTS voice names.

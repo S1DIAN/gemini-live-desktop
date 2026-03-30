@@ -4,6 +4,10 @@ import type {
   EffectiveSessionSnapshot,
   WorkerConnectRequest
 } from "../../shared/types/live";
+import {
+  resolveLiveModelProfile
+} from "../../shared/types/liveModelProfile";
+import { THINKING_BUDGET_OFF } from "../../shared/types/settings";
 
 export interface NormalizedConnectResult {
   ok: boolean;
@@ -31,15 +35,15 @@ export function normalizeConnectRequest(
     };
   }
 
-  let apiVersion = requested.apiVersion;
-  const proactiveAudioEnabled = requested.proactiveMode !== "off";
-  const affectiveDialogEnabled = requested.enableAffectiveDialog;
-  const explicitSpeechLanguageCode = shouldDisableExplicitSpeechLanguageCode(
-    requested.model,
-    requested.speechLanguageCode
-  )
-    ? undefined
-    : requested.speechLanguageCode;
+  const profile = resolveLiveModelProfile(requested.model);
+  let apiVersion =
+    profile.apiVersionPolicy === "fixed"
+      ? profile.recommendedApiVersion
+      : requested.apiVersion;
+  let proactiveMode = requested.proactiveMode;
+  let affectiveDialogEnabled = requested.enableAffectiveDialog;
+  let proactiveAudioEnabled = proactiveMode !== "off";
+  let explicitSpeechLanguageCode: WorkerConnectRequest["settings"]["speechLanguageCode"] | undefined;
 
   if (requested.manualVadMode) {
     decisions.push({
@@ -57,7 +61,27 @@ export function normalizeConnectRequest(
     });
   }
 
-  if (proactiveAudioEnabled && apiVersion === "v1beta") {
+  if (!profile.supportsProactiveAudio) {
+    if (proactiveMode !== "off") {
+      decisions.push({
+        field: "proactivity.proactiveAudio",
+        action: "disabled",
+        reason: `proactive audio is not supported by model ${requested.model}`
+      });
+    } else {
+      decisions.push({
+        field: "proactivity.proactiveAudio",
+        action: "disabled",
+        reason: `proactive audio is not supported by model ${requested.model}`
+      });
+    }
+    proactiveMode = "off";
+    proactiveAudioEnabled = false;
+  } else if (
+    profile.apiVersionPolicy === "feature_gated" &&
+    proactiveAudioEnabled &&
+    apiVersion === "v1beta"
+  ) {
     apiVersion = "v1alpha";
     decisions.push({
       field: "proactivity.proactiveAudio",
@@ -74,7 +98,26 @@ export function normalizeConnectRequest(
     });
   }
 
-  if (affectiveDialogEnabled && apiVersion === "v1beta") {
+  if (!profile.supportsAffectiveDialog) {
+    if (affectiveDialogEnabled) {
+      decisions.push({
+        field: "enableAffectiveDialog",
+        action: "disabled",
+        reason: `affective dialog is not supported by model ${requested.model}`
+      });
+    } else {
+      decisions.push({
+        field: "enableAffectiveDialog",
+        action: "disabled",
+        reason: `affective dialog is not supported by model ${requested.model}`
+      });
+    }
+    affectiveDialogEnabled = false;
+  } else if (
+    profile.apiVersionPolicy === "feature_gated" &&
+    affectiveDialogEnabled &&
+    apiVersion === "v1beta"
+  ) {
     apiVersion = "v1alpha";
     decisions.push({
       field: "enableAffectiveDialog",
@@ -91,18 +134,47 @@ export function normalizeConnectRequest(
     });
   }
 
+  if (profile.apiVersionPolicy === "fixed") {
+    decisions.push({
+      field: "apiVersion",
+      action: apiVersion === requested.apiVersion ? "kept" : "disabled",
+      reason: `model ${requested.model} uses fixed API version ${apiVersion}`
+    });
+  }
+
+  if (profile.speechLanguagePolicy === "omit_explicit") {
+    explicitSpeechLanguageCode = undefined;
+  } else {
+    explicitSpeechLanguageCode = shouldDisableExplicitSpeechLanguageCode(
+      requested.model,
+      requested.speechLanguageCode
+    )
+      ? undefined
+      : requested.speechLanguageCode;
+  }
+
   const snapshot: EffectiveSessionSnapshot = {
     model: requested.model,
+    modelPreset: profile.preset,
     apiVersion,
     voiceName: requested.voiceName,
     allowInterruption: requested.allowInterruption,
     speechLanguageCode: explicitSpeechLanguageCode,
-    proactiveMode: requested.proactiveMode,
+    speechLanguagePolicy: profile.speechLanguagePolicy,
+    proactiveMode,
     thinkingMode: requested.thinkingMode,
-    thinkingBudget: requested.thinkingBudget,
+    thinkingBudget:
+      profile.thinkingPolicy === "level_primary" &&
+      requested.thinkingMode !== "off"
+        ? THINKING_BUDGET_OFF
+        : requested.thinkingBudget,
     thinkingIncludeThoughts: requested.thinkingIncludeThoughts,
-    thinkingLevel: requested.thinkingLevel,
+    thinkingLevel:
+      requested.thinkingMode === "off" ? "model_default" : requested.thinkingLevel,
+    thinkingPolicy: profile.thinkingPolicy,
+    textTransportPolicy: profile.textTransportPolicy,
     mediaResolution: requested.mediaResolution,
+    turnCoveragePolicy: profile.turnCoveragePolicy,
     proactiveAudioEnabled,
     affectiveDialogEnabled,
     contextWindowCompressionEnabled: true,
@@ -121,23 +193,41 @@ export function normalizeConnectRequest(
   };
 
   decisions.push(
-    explicitSpeechLanguageCode
+    profile.speechLanguagePolicy === "omit_explicit"
       ? {
           field: "speechConfig.languageCode",
-          action: "kept" as const,
-          reason: `speech language set to ${explicitSpeechLanguageCode}`
-        }
-      : {
-          field: "speechConfig.languageCode",
           action: "disabled" as const,
-          reason:
-            "explicit speech language disabled for this model to avoid backend unsupported-language disconnects"
+          reason: `explicit speech language is disabled for model ${requested.model}`
+        }
+      : explicitSpeechLanguageCode
+        ? {
+            field: "speechConfig.languageCode",
+            action: "kept" as const,
+            reason: `speech language set to ${explicitSpeechLanguageCode}`
+          }
+        : {
+            field: "speechConfig.languageCode",
+            action: "disabled" as const,
+            reason:
+              "explicit speech language disabled for this model to avoid backend unsupported-language disconnects"
+          },
+    profile.thinkingPolicy === "level_primary"
+      ? requested.thinkingMode === "off"
+        ? {
+            field: "thinkingConfig.thinkingBudget",
+            action: "kept" as const,
+            reason: "thinking mode is off, so thinking budget is forced to 0"
+          }
+        : {
+            field: "thinkingConfig.thinkingBudget",
+            action: "disabled" as const,
+            reason: "selected model uses thinkingLevel as primary thinking control"
+          }
+      : {
+          field: "thinkingConfig.thinkingBudget",
+          action: "kept" as const,
+          reason: `thinking mode=${requested.thinkingMode}, budget=${requested.thinkingBudget}`
         },
-    {
-      field: "thinkingConfig.thinkingBudget",
-      action: "kept",
-      reason: `thinking mode=${requested.thinkingMode}, budget=${requested.thinkingBudget}`
-    },
     {
       field: "thinkingConfig.includeThoughts",
       action: requested.thinkingIncludeThoughts ? "kept" : "disabled",
@@ -148,16 +238,34 @@ export function normalizeConnectRequest(
     {
       field: "thinkingConfig.thinkingLevel",
       action:
-        requested.thinkingLevel === "model_default" ? "disabled" : "kept",
-      reason:
+        requested.thinkingMode === "off" ||
         requested.thinkingLevel === "model_default"
+          ? "disabled"
+          : "kept",
+      reason:
+        requested.thinkingMode === "off"
+          ? "thinking mode is off"
+          : requested.thinkingLevel === "model_default"
           ? "model default thinking level is used"
           : `thinking level set to ${requested.thinkingLevel}`
+    },
+    {
+      field: "textTransport",
+      action: "kept",
+      reason:
+        profile.textTransportPolicy === "realtime_only"
+          ? "text turns are sent through sendRealtimeInput"
+          : "manual and startup text use sendClientContent, proactive hints use sendRealtimeInput"
     },
     {
       field: "mediaResolution",
       action: "kept",
       reason: `media resolution set to ${requested.mediaResolution}`
+    },
+    {
+      field: "realtimeInputConfig.turnCoverage",
+      action: "kept",
+      reason: "turn coverage is pinned to TURN_INCLUDES_ONLY_ACTIVITY"
     },
     {
       field: "realtimeInputConfig.activityHandling",

@@ -5,19 +5,33 @@ export function SettingsRow({
   label,
   helpText,
   helpAriaLabel,
+  warningText,
+  warningAriaLabel,
   description,
   control,
-  className
+  className,
+  muted = false
 }: {
   label: string;
   helpText?: ReactNode;
   helpAriaLabel?: string;
+  warningText?: ReactNode;
+  warningAriaLabel?: string;
   description?: ReactNode;
   control: ReactNode;
   className?: string;
+  muted?: boolean;
 }) {
+  const composedClassName = [
+    "settings-row",
+    className,
+    muted ? "settings-row-muted" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className={className ? `settings-row ${className}` : "settings-row"}>
+    <div className={composedClassName}>
       <div className="settings-row-copy">
         <div className="settings-row-label">
           <span>{label}</span>
@@ -25,6 +39,13 @@ export function SettingsRow({
             <HelpTooltip
               content={helpText}
               ariaLabel={helpAriaLabel ?? `${label} description`}
+            />
+          ) : null}
+          {warningText ? (
+            <HelpTooltip
+              content={warningText}
+              ariaLabel={warningAriaLabel ?? `${label} unavailable`}
+              variant="warning"
             />
           ) : null}
         </div>

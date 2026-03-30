@@ -131,3 +131,13 @@ export function QuestionCircleIcon(props: IconProps) {
     </BaseIcon>
   );
 }
+
+export function AlertTriangleIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M12 4 20 19H4Z" />
+      <path d="M12 9v4.5" />
+      <circle cx="12" cy="16.4" r="0.8" fill="currentColor" stroke="none" />
+    </BaseIcon>
+  );
+}

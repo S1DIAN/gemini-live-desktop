@@ -491,6 +491,14 @@ pre {
   stroke-width: 2;
 }
 
+.help-tooltip.variant-warning .help-tooltip-trigger {
+  color: #f1b74a;
+}
+
+.help-tooltip.variant-warning:hover .help-tooltip-trigger {
+  color: #ffd166;
+}
+
 .help-tooltip-content {
   position: absolute;
   left: 50%;
@@ -531,6 +539,15 @@ pre {
   border-right: 1px solid rgba(173, 198, 255, 0.28);
   border-bottom: 1px solid rgba(173, 198, 255, 0.28);
   transform: rotate(45deg);
+}
+
+.help-tooltip.variant-warning .help-tooltip-content {
+  border-color: rgba(241, 183, 74, 0.34);
+}
+
+.help-tooltip.variant-warning .help-tooltip-content::after {
+  border-right-color: rgba(241, 183, 74, 0.34);
+  border-bottom-color: rgba(241, 183, 74, 0.34);
 }
 
 .help-tooltip:hover .help-tooltip-content,
@@ -605,6 +622,15 @@ pre {
   display: flex;
   justify-content: flex-end;
   min-width: 0;
+}
+
+.settings-row-muted {
+  opacity: 0.56;
+}
+
+.settings-row-muted .settings-row-label,
+.settings-row-muted .settings-row-description {
+  color: var(--text-disabled);
 }
 
 .control-cluster {
@@ -1583,6 +1609,15 @@ pre {
 
 .dock-ai-settings-item-locked .dock-ai-settings-label,
 .dock-ai-settings-item-locked span {
+  color: var(--text-disabled);
+}
+
+.dock-ai-settings-item-unavailable {
+  opacity: 0.56;
+}
+
+.dock-ai-settings-item-unavailable .dock-ai-settings-label,
+.dock-ai-settings-item-unavailable span {
   color: var(--text-disabled);
 }
 

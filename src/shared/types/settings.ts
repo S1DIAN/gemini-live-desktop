@@ -1,3 +1,9 @@
+import {
+  GEMINI_2_5_FLASH_NATIVE_AUDIO_MODEL,
+  GEMINI_3_1_FLASH_LIVE_PREVIEW_MODEL,
+  resolveLiveModelProfile
+} from "./liveModelProfile";
+
 export type ApiVersion = "v1beta" | "v1alpha";
 export type ProactiveMode = "off" | "pure" | "assisted";
 export type CommentLengthPreset = "short" | "medium" | "long";
@@ -142,17 +148,50 @@ export const defaultSettings: AppSettings = {
 };
 
 export function getAutoApiVersion(
+  model: string,
   proactiveMode: ProactiveMode,
   enableAffectiveDialog: boolean
 ): ApiVersion {
+  const profile = resolveLiveModelProfile(model);
+  if (profile.apiVersionPolicy === "fixed") {
+    return profile.recommendedApiVersion;
+  }
   if (proactiveMode !== "off" || enableAffectiveDialog) {
     return "v1alpha";
   }
-  return "v1beta";
+  return profile.recommendedApiVersion;
 }
 
 export function applyAutoApiVersion(settings: AppSettings): AppSettings {
+  if (
+    settings.api.model !== GEMINI_2_5_FLASH_NATIVE_AUDIO_MODEL &&
+    settings.api.model !== GEMINI_3_1_FLASH_LIVE_PREVIEW_MODEL
+  ) {
+    settings.api.model = GEMINI_2_5_FLASH_NATIVE_AUDIO_MODEL;
+  }
+  const profile = resolveLiveModelProfile(settings.api.model);
+  if (!profile.supportsProactiveAudio) {
+    settings.api.proactiveMode = "off";
+  }
+  if (!profile.supportsAffectiveDialog) {
+    settings.api.enableAffectiveDialog = false;
+  }
+  if (profile.thinkingPolicy === "level_primary") {
+    if (settings.api.thinkingMode === "custom") {
+      settings.api.thinkingMode = "auto";
+    }
+    settings.api.thinkingBudget =
+      settings.api.thinkingMode === "off"
+        ? THINKING_BUDGET_OFF
+        : THINKING_BUDGET_AUTO;
+  } else {
+    settings.api.thinkingBudget = resolveThinkingBudget(
+      settings.api.thinkingMode,
+      settings.api.thinkingBudget
+    );
+  }
   settings.api.apiVersion = getAutoApiVersion(
+    settings.api.model,
     settings.api.proactiveMode,
     settings.api.enableAffectiveDialog
   );

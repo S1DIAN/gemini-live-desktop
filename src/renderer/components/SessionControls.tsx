@@ -20,6 +20,15 @@ import {
   THINKING_BUDGET_MIN,
   THINKING_BUDGET_OFF
 } from "@shared/types/settings";
+import {
+  GEMINI_2_5_FLASH_NATIVE_AUDIO_MODEL,
+  GEMINI_3_1_FLASH_LIVE_PREVIEW_MODEL,
+  getLiveModelDisplayName,
+  resolveLiveModelProfile,
+  resolveLiveModelPreset,
+  resolveModelFromPreset,
+  type LiveModelPreset
+} from "@shared/types/liveModelProfile";
 import { Switch } from "@renderer/components/ui/Switch";
 
 interface SourceOption {
@@ -52,7 +61,7 @@ interface SessionControlsProps {
 }
 
 export function SessionControls(props: SessionControlsProps) {
-  const { copy } = useI18n();
+  const { copy, locale } = useI18n();
   const { settings, update } = useSettingsStore();
   const settingsHelp = copy.settings.help;
   const [busy, setBusy] = useState(false);
@@ -76,11 +85,104 @@ export function SessionControls(props: SessionControlsProps) {
     }
     return [settings.api.voiceName, ...base];
   }, [settings.api.voiceName]);
+  const modelProfile = useMemo(
+    () => resolveLiveModelProfile(settings.api.model),
+    [settings.api.model]
+  );
+  const thinkingBudgetSupported = modelProfile.thinkingPolicy === "budget_primary";
   const thinkingEnabled = settings.api.thinkingMode !== "off";
-  const customThinkingBudget = settings.api.thinkingMode === "custom";
+  const displayedThinkingLevel = thinkingEnabled
+    ? settings.api.thinkingLevel
+    : "model_default";
+  const customThinkingBudget =
+    thinkingBudgetSupported && settings.api.thinkingMode === "custom";
   const thinkingLevelLocked = connectSetupLocked || !thinkingEnabled;
-  const thinkingBudgetLocked = connectSetupLocked || !thinkingEnabled;
-  const thinkingBudgetRangeLocked = connectSetupLocked || !customThinkingBudget;
+  const thinkingBudgetLocked =
+    connectSetupLocked || !thinkingEnabled || !thinkingBudgetSupported;
+  const thinkingBudgetRangeLocked =
+    connectSetupLocked || !customThinkingBudget || !thinkingBudgetSupported;
+  const modelPreset = useMemo(
+    () => resolveLiveModelPreset(settings.api.model),
+    [settings.api.model]
+  );
+  const modelPresetLabel =
+    locale === "ru" ? "Пресет модели" : "Model Preset";
+  const modelPresetOptions: { value: LiveModelPreset; label: string }[] = useMemo(
+    () => [
+      {
+        value: "gemini_2_5",
+        label: "Gemini 2.5 Flash Native Audio"
+      },
+      {
+        value: "gemini_3_1",
+        label: "Gemini 3.1 Flash Live Preview"
+      },
+      {
+        value: "custom",
+        label: locale === "ru" ? "Custom (свой)" : "Custom"
+      }
+    ],
+    [locale]
+  );
+  const proactiveModelUnsupported = !modelProfile.supportsProactiveAudio;
+  const affectiveModelUnsupported = !modelProfile.supportsAffectiveDialog;
+  const proactiveUnsupportedReason = proactiveModelUnsupported
+    ? locale === "ru"
+      ? `Для модели ${settings.api.model} проактивный режим недоступен.`
+      : `Proactive mode is unavailable for model ${settings.api.model}.`
+    : settingsHelp.fields.proactiveMode;
+  const affectiveUnsupportedReason = affectiveModelUnsupported
+    ? locale === "ru"
+      ? `Для модели ${settings.api.model} аффективный диалог недоступен.`
+      : `Affective dialog is unavailable for model ${settings.api.model}.`
+    : settingsHelp.fields.affectiveDialog;
+  const thinkingBudgetUnsupportedReason = !thinkingBudgetSupported
+    ? locale === "ru"
+      ? `Для модели ${settings.api.model} бюджет размышления отключен: используйте "Уровень размышления".`
+      : `Thinking budget is disabled for model ${settings.api.model}. Use Thinking Level instead.`
+    : settingsHelp.fields.thinkingBudget;
+
+  const modelSelectorOptions = [
+    {
+      value: GEMINI_2_5_FLASH_NATIVE_AUDIO_MODEL,
+      label: getLiveModelDisplayName(GEMINI_2_5_FLASH_NATIVE_AUDIO_MODEL)
+    },
+    {
+      value: GEMINI_3_1_FLASH_LIVE_PREVIEW_MODEL,
+      label: getLiveModelDisplayName(GEMINI_3_1_FLASH_LIVE_PREVIEW_MODEL)
+    }
+  ] as const;
+  const proactiveUnavailableText = proactiveModelUnsupported
+    ? locale === "ru"
+      ? "Проактивный режим недоступен для Gemini 3.1 Flash. Переключитесь на Gemini 2.5."
+      : "Proactive mode is unavailable for Gemini 3.1 Flash. Switch to Gemini 2.5."
+    : proactiveUnsupportedReason;
+  const affectiveUnavailableText = affectiveModelUnsupported
+    ? locale === "ru"
+      ? "Аффективный диалог недоступен для Gemini 3.1 Flash. Переключитесь на Gemini 2.5."
+      : "Affective dialog is unavailable for Gemini 3.1 Flash. Switch to Gemini 2.5."
+    : affectiveUnsupportedReason;
+  const thinkingBudgetUnavailableText = !thinkingBudgetSupported
+    ? locale === "ru"
+      ? "Ручной бюджет размышления недоступен для Gemini 3.1 Flash. Используйте «Уровень размышления» или переключитесь на Gemini 2.5."
+      : "Manual thinking budget is unavailable for Gemini 3.1 Flash. Use Thinking Level or switch to Gemini 2.5."
+    : thinkingBudgetUnsupportedReason;
+
+  const proactiveWarningText = proactiveModelUnsupported
+    ? locale === "ru"
+      ? "Проактивный режим недоступен для gemini 3.1 flash live preview. Переключитесь на gemini 2.5 flash native audio."
+      : "Proactive mode is unavailable for gemini 3.1 flash live preview. Switch to gemini 2.5 flash native audio."
+    : proactiveUnavailableText;
+  const affectiveWarningText = affectiveModelUnsupported
+    ? locale === "ru"
+      ? "Аффективный диалог недоступен для gemini 3.1 flash live preview. Переключитесь на gemini 2.5 flash native audio."
+      : "Affective dialog is unavailable for gemini 3.1 flash live preview. Switch to gemini 2.5 flash native audio."
+    : affectiveUnavailableText;
+  const thinkingBudgetWarningText = !thinkingBudgetSupported
+    ? locale === "ru"
+      ? "Ручной бюджет размышления недоступен для gemini 3.1 flash live preview. Используйте «Уровень размышления» или переключитесь на gemini 2.5 flash native audio."
+      : "Manual thinking budget is unavailable for gemini 3.1 flash live preview. Use Thinking Level or switch to gemini 2.5 flash native audio."
+    : thinkingBudgetUnavailableText;
 
   async function run(
     action: "connect" | "pause" | "disconnect" | "mic" | "camera" | "screen",
@@ -143,10 +245,18 @@ export function SessionControls(props: SessionControlsProps) {
 
   function updateThinkingMode(next: "off" | "auto" | "custom"): void {
     update((draft) => {
-      draft.api.thinkingMode = next;
-      if (next === "off") {
+      const draftModelProfile = resolveLiveModelProfile(draft.api.model);
+      const normalizedMode =
+        draftModelProfile.thinkingPolicy === "level_primary" && next === "custom"
+          ? "auto"
+          : next;
+      draft.api.thinkingMode = normalizedMode;
+      if (normalizedMode === "off") {
         draft.api.thinkingBudget = THINKING_BUDGET_OFF;
-      } else if (next === "auto") {
+      } else if (
+        normalizedMode === "auto" ||
+        draftModelProfile.thinkingPolicy === "level_primary"
+      ) {
         draft.api.thinkingBudget = THINKING_BUDGET_AUTO;
       } else if (draft.api.thinkingBudget < THINKING_BUDGET_MIN) {
         draft.api.thinkingBudget = THINKING_BUDGET_MIN;
@@ -342,7 +452,10 @@ export function SessionControls(props: SessionControlsProps) {
                 className={`dock-ai-settings-section ${connectSetupLocked ? "dock-ai-settings-item-locked" : ""}`}
               >
                 <div className="dock-label-with-help">
-                  <label className="dock-ai-settings-label" htmlFor="dock-model-input">
+                  <label
+                    className="dock-ai-settings-label"
+                    htmlFor="dock-model-select"
+                  >
                     {copy.settings.fields.model}
                   </label>
                   <HelpTooltip
@@ -350,17 +463,24 @@ export function SessionControls(props: SessionControlsProps) {
                     ariaLabel={settingsHelp.iconAriaLabel}
                   />
                 </div>
-                <input
-                  id="dock-model-input"
+                <select
+                  id="dock-model-select"
                   disabled={connectSetupLocked}
                   value={settings.api.model}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    setVoicePickerOpen(false);
                     update((draft) => {
                       draft.api.model = event.target.value;
                       return draft;
-                    })
-                  }
-                />
+                    });
+                  }}
+                >
+                  {modelSelectorOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div
@@ -472,13 +592,14 @@ export function SessionControls(props: SessionControlsProps) {
                     {copy.callPage.assistantModeTitle}
                   </label>
                   <HelpTooltip
-                    content={settingsHelp.fields.proactiveMode}
+                content={proactiveWarningText}
                     ariaLabel={settingsHelp.iconAriaLabel}
+                    variant={proactiveModelUnsupported ? "warning" : "help"}
                   />
                 </div>
                 <select
                   id="dock-assistant-mode-select"
-                  disabled={connectSetupLocked}
+                  disabled={connectSetupLocked || proactiveModelUnsupported}
                   value={settings.api.proactiveMode}
                   onChange={(event) =>
                     update((draft) => {
@@ -555,7 +676,7 @@ export function SessionControls(props: SessionControlsProps) {
                 <select
                   id="dock-thinking-level-select"
                   disabled={thinkingLevelLocked}
-                  value={settings.api.thinkingLevel}
+                  value={displayedThinkingLevel}
                   onChange={(event) =>
                     update((draft) => {
                       draft.api.thinkingLevel = event.target.value as
@@ -583,17 +704,18 @@ export function SessionControls(props: SessionControlsProps) {
               </div>
 
               <div
-                className={`dock-ai-settings-switch-row ${thinkingBudgetLocked ? "dock-ai-settings-item-locked" : ""}`}
+                className={`dock-ai-settings-switch-row ${thinkingBudgetLocked ? "dock-ai-settings-item-locked" : ""} ${!thinkingBudgetSupported ? "dock-ai-settings-item-unavailable" : ""}`}
               >
                 <span className="dock-label-with-help">
                   <span>{copy.settings.fields.thinkingBudget}</span>
                   <HelpTooltip
-                    content={settingsHelp.fields.thinkingBudget}
+                content={thinkingBudgetWarningText}
                     ariaLabel={settingsHelp.iconAriaLabel}
+                    variant={!thinkingBudgetSupported ? "warning" : "help"}
                   />
                 </span>
                 <Switch
-                  checked={customThinkingBudget}
+                  checked={thinkingBudgetSupported && customThinkingBudget}
                   disabled={thinkingBudgetLocked}
                   onChange={(next) => updateThinkingMode(next ? "custom" : "auto")}
                 />
@@ -629,7 +751,9 @@ export function SessionControls(props: SessionControlsProps) {
                   }}
                 />
                 <span className="value-pill">
-                  {customThinkingBudget
+                  {!thinkingBudgetSupported
+                    ? copy.settings.fields.thinkingLevel
+                    : customThinkingBudget
                     ? settings.api.thinkingBudget
                     : settings.api.thinkingMode === "auto"
                       ? copy.settings.options.thinkingMode.auto
@@ -638,18 +762,19 @@ export function SessionControls(props: SessionControlsProps) {
               </div>
 
               <div
-                className={`dock-ai-settings-switch-row ${connectSetupLocked ? "dock-ai-settings-item-locked" : ""}`}
+                className={`dock-ai-settings-switch-row ${connectSetupLocked ? "dock-ai-settings-item-locked" : ""} ${affectiveModelUnsupported ? "dock-ai-settings-item-unavailable" : ""}`}
               >
                 <span className="dock-label-with-help">
                   <span>{copy.settings.fields.affectiveDialog}</span>
                   <HelpTooltip
-                    content={settingsHelp.fields.affectiveDialog}
+                content={affectiveWarningText}
                     ariaLabel={settingsHelp.iconAriaLabel}
+                    variant={affectiveModelUnsupported ? "warning" : "help"}
                   />
                 </span>
                 <Switch
                   checked={settings.api.enableAffectiveDialog}
-                  disabled={connectSetupLocked}
+                  disabled={connectSetupLocked || affectiveModelUnsupported}
                   onChange={(next) =>
                     update((draft) => {
                       draft.api.enableAffectiveDialog = next;

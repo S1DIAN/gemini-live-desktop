@@ -7,6 +7,8 @@ import {
   EndSensitivity,
   ThinkingLevel,
   TurnCoverage,
+  VoiceActivityType,
+  VadSignalType,
   type LiveCallbacks,
   type LiveConnectConfig,
   type LiveServerMessage,
@@ -61,12 +63,14 @@ interface TurnLatencyContext {
   completed: boolean;
 }
 
+type TextTransportMode = "send_realtime_input" | "send_client_content";
+
 interface LiveAdapter {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   sendAudio(message: Extract<MediaPortMessage, { type: "audio-chunk" }>): void;
   sendFrame(message: Extract<MediaPortMessage, { type: "visual-frame" }>): void;
-  sendText(request: WorkerTextRequest): void;
+  sendText(request: WorkerTextRequest): TextTransportMode | null;
   signalAudioStreamEnd(): void;
 }
 
@@ -92,25 +96,41 @@ class GeminiLiveAdapter implements LiveAdapter {
     const timeout = setTimeout(() => {
       controller.abort(new Error("Live connect timed out"));
     }, LIVE_CONNECT_TIMEOUT_MS);
+    const thinkingConfig: NonNullable<LiveConnectConfig["thinkingConfig"]> = {
+      includeThoughts: this.effectiveConfig.snapshot.thinkingIncludeThoughts
+    };
+    const thinkingLevel = toThinkingLevel(
+      this.effectiveConfig.snapshot.thinkingLevel
+    );
+    if (thinkingLevel) {
+      thinkingConfig.thinkingLevel = thinkingLevel;
+    }
+    if (
+      this.effectiveConfig.snapshot.thinkingPolicy === "budget_primary" ||
+      this.effectiveConfig.snapshot.thinkingMode === "off"
+    ) {
+      thinkingConfig.thinkingBudget = this.effectiveConfig.snapshot.thinkingBudget;
+    }
+    const speechConfig: NonNullable<LiveConnectConfig["speechConfig"]> = {
+      voiceConfig: {
+        prebuiltVoiceConfig: {
+          voiceName: this.effectiveConfig.snapshot.voiceName
+        }
+      }
+    };
+    if (
+      this.effectiveConfig.snapshot.speechLanguagePolicy ===
+        "explicit_supported" &&
+      this.effectiveConfig.snapshot.speechLanguageCode
+    ) {
+      speechConfig.languageCode = this.effectiveConfig.snapshot.speechLanguageCode;
+    }
     const config: LiveConnectConfig = {
       abortSignal: controller.signal,
       responseModalities: [Modality.AUDIO],
       systemInstruction: bootstrap.systemInstruction,
-      thinkingConfig: {
-        thinkingBudget: this.effectiveConfig.snapshot.thinkingBudget,
-        includeThoughts: this.effectiveConfig.snapshot.thinkingIncludeThoughts,
-        thinkingLevel: toThinkingLevel(
-          this.effectiveConfig.snapshot.thinkingLevel
-        )
-      },
-      speechConfig: {
-        languageCode: this.effectiveConfig.snapshot.speechLanguageCode,
-        voiceConfig: {
-          prebuiltVoiceConfig: {
-            voiceName: this.effectiveConfig.snapshot.voiceName
-          }
-        }
-      },
+      thinkingConfig,
+      speechConfig,
       mediaResolution: toMediaResolution(
         this.effectiveConfig.snapshot.mediaResolution
       ),
@@ -150,7 +170,9 @@ class GeminiLiveAdapter implements LiveAdapter {
         activityHandling: this.effectiveConfig.snapshot.allowInterruption
           ? ActivityHandling.START_OF_ACTIVITY_INTERRUPTS
           : ActivityHandling.NO_INTERRUPTION,
-        turnCoverage: TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY
+        turnCoverage: toTurnCoverage(
+          this.effectiveConfig.snapshot.turnCoveragePolicy
+        )
       }
     };
 
@@ -203,20 +225,23 @@ class GeminiLiveAdapter implements LiveAdapter {
     });
   }
 
-  sendText(request: WorkerTextRequest): void {
+  sendText(request: WorkerTextRequest): TextTransportMode | null {
     const text = request.hidden
       ? `[hidden-instruction]\n${request.text}\n[/hidden-instruction]`
       : request.text;
 
-    if (request.source === "proactive_hidden_hint") {
+    const forceRealtimeInput =
+      this.effectiveConfig.snapshot.textTransportPolicy === "realtime_only";
+    if (forceRealtimeInput || request.source === "proactive_hidden_hint") {
       this.session?.sendRealtimeInput({ text });
-      return;
+      return "send_realtime_input";
     }
 
     this.session?.sendClientContent({
       turns: [{ role: "user", parts: [{ text }] }],
       turnComplete: true
     });
+    return "send_client_content";
   }
 
   signalAudioStreamEnd(): void {
@@ -263,7 +288,12 @@ export class MockLiveAdapter implements LiveAdapter {
   sendFrame(): void {}
   signalAudioStreamEnd(): void {}
 
-  sendText(request: WorkerTextRequest): void {
+  sendText(request: WorkerTextRequest): TextTransportMode {
+    const transportMode =
+      this.effectiveConfig.snapshot.textTransportPolicy === "realtime_only" ||
+      request.source === "proactive_hidden_hint"
+        ? "send_realtime_input"
+        : "send_client_content";
     const degraded =
       this.effectiveConfig.snapshot.apiVersion === "v1beta" &&
       this.effectiveConfig.snapshot.proactiveAudioEnabled;
@@ -280,6 +310,7 @@ export class MockLiveAdapter implements LiveAdapter {
         turnComplete: true
       }
     } as LiveServerMessage);
+    return transportMode;
   }
 }
 
@@ -410,7 +441,22 @@ export class LiveSessionManager {
     if (request.source === "proactive_hidden_hint") {
       this.pendingProactiveTriggers.push(Date.now());
     }
-    this.adapter?.sendText(request);
+    const transport = this.adapter?.sendText(request) ?? null;
+    if (!transport) {
+      return;
+    }
+    this.emitLatencyDiagnostic(
+      "text_transport_selected",
+      {
+        timestamp: Date.now(),
+        source: request.source,
+        transport,
+        model: this.effectiveConfig?.snapshot.model,
+        modelPreset: this.effectiveConfig?.snapshot.modelPreset
+      },
+      "debug",
+      "capability"
+    );
   }
 
   handleVoiceTurnEvent(event: VoiceTurnTelemetryEvent): void {
@@ -623,6 +669,34 @@ export class LiveSessionManager {
       }
 
       const serverContent = message.serverContent;
+      const previousWaitingForInput = this.waitingForInput;
+      const nextWaitingForInput = serverContent?.waitingForInput ?? false;
+      const voiceActivityType = message.voiceActivity?.voiceActivityType;
+      const vadSignalType = message.voiceActivityDetectionSignal?.vadSignalType;
+      if (voiceActivityType) {
+        this.emitLatencyDiagnostic(
+          "voice_activity_signal",
+          {
+            timestamp: receivedAt,
+            voiceActivityType,
+            sessionId: this.sessionId
+          },
+          "debug",
+          "audio"
+        );
+      }
+      if (vadSignalType) {
+        this.emitLatencyDiagnostic(
+          "vad_signal_received",
+          {
+            timestamp: receivedAt,
+            vadSignalType,
+            sessionId: this.sessionId
+          },
+          "debug",
+          "audio"
+        );
+      }
       const hasModelAudio = Boolean(
         serverContent?.modelTurn?.parts?.some((part) => part.inlineData?.data)
       );
@@ -632,6 +706,21 @@ export class LiveSessionManager {
       );
       const hasModelSignal = hasModelAudio || hasModelText;
       let responseTurnId = this.activeModelTurnId;
+      if (!responseTurnId && voiceActivityType === VoiceActivityType.ACTIVITY_END) {
+        responseTurnId = this.claimNextModelTurn(receivedAt, "voice_activity_end");
+      }
+      if (
+        !responseTurnId &&
+        vadSignalType === VadSignalType.VAD_SIGNAL_TYPE_EOS
+      ) {
+        responseTurnId = this.claimNextModelTurn(receivedAt, "vad_signal_eos");
+      }
+      if (!responseTurnId && previousWaitingForInput && !nextWaitingForInput) {
+        responseTurnId = this.claimNextModelTurn(
+          receivedAt,
+          "waiting_for_input_cleared"
+        );
+      }
       if (!responseTurnId && hasModelSignal) {
         responseTurnId = this.claimNextModelTurn(
           receivedAt,
@@ -750,7 +839,7 @@ export class LiveSessionManager {
         this.emit(event);
       }
 
-      this.waitingForInput = serverContent?.waitingForInput ?? false;
+      this.waitingForInput = nextWaitingForInput;
       if (serverContent?.interrupted && responseTurnId) {
         this.emitTurnAborted(
           responseTurnId,
@@ -1461,6 +1550,16 @@ function toMediaResolution(
     case "medium":
     default:
       return MediaResolution.MEDIA_RESOLUTION_MEDIUM;
+  }
+}
+
+function toTurnCoverage(
+  value: EffectiveRuntimeConfig["snapshot"]["turnCoveragePolicy"]
+): TurnCoverage {
+  switch (value) {
+    case "turn_includes_only_activity":
+    default:
+      return TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY;
   }
 }
 

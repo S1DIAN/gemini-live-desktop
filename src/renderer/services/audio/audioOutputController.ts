@@ -3,6 +3,7 @@ import { parsePcmSampleRate, Pcm16ChunkDecoder } from "./pcm16ChunkDecoder";
 
 const LIVE_OUTPUT_SAMPLE_RATE = 24000;
 const MIN_PLAYBACK_LEAD_SECONDS = 0.03;
+const RECOVERY_PLAYBACK_LEAD_SECONDS = 0.12;
 
 interface PlaybackCallbacks {
   onPlaybackStarted?: (payload: {
@@ -147,8 +148,12 @@ export class AudioOutputController {
       };
       this.activeSources.add(source);
 
+      const leadSeconds = resolvePlaybackLeadSeconds(
+        item.turnId !== undefined && this.activePlaybackTurnId !== item.turnId,
+        this.scheduledTime <= this.context.currentTime
+      );
       const startAt = Math.max(
-        this.context.currentTime + MIN_PLAYBACK_LEAD_SECONDS,
+        this.context.currentTime + leadSeconds,
         this.scheduledTime
       );
       if (item.turnId && this.activePlaybackTurnId !== item.turnId) {
@@ -194,4 +199,14 @@ export class AudioOutputController {
     this.activePlaybackTurnId = null;
     this.activePlaybackStartedAt = null;
   }
+}
+
+export function resolvePlaybackLeadSeconds(
+  startingNewTurn: boolean,
+  recoveringFromUnderrun: boolean
+): number {
+  if (startingNewTurn || recoveringFromUnderrun) {
+    return RECOVERY_PLAYBACK_LEAD_SECONDS;
+  }
+  return MIN_PLAYBACK_LEAD_SECONDS;
 }

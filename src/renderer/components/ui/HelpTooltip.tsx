@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { QuestionCircleIcon } from "@renderer/components/ui/Icons";
+import {
+  AlertTriangleIcon,
+  QuestionCircleIcon
+} from "@renderer/components/ui/Icons";
 
 interface HelpTooltipProps {
   content: ReactNode;
   ariaLabel?: string;
+  variant?: "help" | "warning";
 }
 
-export function HelpTooltip({ content, ariaLabel }: HelpTooltipProps) {
+export function HelpTooltip({
+  content,
+  ariaLabel,
+  variant = "help"
+}: HelpTooltipProps) {
   const tooltipId = useId();
   const rootRef = useRef<HTMLSpanElement | null>(null);
   const tooltipRef = useRef<HTMLSpanElement | null>(null);
@@ -52,13 +60,17 @@ export function HelpTooltip({ content, ariaLabel }: HelpTooltipProps) {
   return (
     <span
       ref={rootRef}
-      className={`help-tooltip placement-${placement}`}
+      className={`help-tooltip variant-${variant} placement-${placement}`}
       onMouseEnter={updatePlacement}
       onFocusCapture={updatePlacement}
       aria-label={ariaLabel}
     >
       <span className="help-tooltip-trigger" aria-hidden="true">
-        <QuestionCircleIcon size={13} />
+        {variant === "warning" ? (
+          <AlertTriangleIcon size={13} />
+        ) : (
+          <QuestionCircleIcon size={13} />
+        )}
       </span>
       <span
         ref={tooltipRef}
