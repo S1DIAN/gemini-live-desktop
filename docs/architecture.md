@@ -18,8 +18,8 @@ The app is split into five runtime layers:
 ## Invariants
 
 - Saved plaintext API keys never leave the `main` or `worker` boundary.
-- Voice preview generation for settings UI is executed in `main` through Gemini TTS using the encrypted key; renderer receives only generated preview audio bytes.
-- Voice preview IPC keeps a bounded in-memory cache and cancels stale in-flight preview synthesis when the user switches voices quickly.
+- Voice preview generation for settings UI is executed in `main` and first resolves bundled local WAV samples from `assets/voice-previews/{en,ru}`; renderer receives only preview audio bytes.
+- Voice preview IPC falls back to Gemini TTS only when a bundled sample is missing; fallback requests keep a bounded in-memory cache, run sequentially with per-request pacing, and retry quota-backoff (`RetryInfo`) responses before surfacing failure.
 - The live session never runs in the renderer.
 - Command IPC and streaming media transport are separate mechanisms.
 - Worker commands are delivered only after an explicit worker-ready handshake from the utility process.
@@ -63,7 +63,7 @@ The app is split into five runtime layers:
 - Settings normalization also applies legacy thinking migration so old persisted `thinkingBudget` values map into explicit thinking mode (`off`/`auto`/`custom`) without breaking existing installs.
 - API keys are stored separately as an encrypted blob through `safeStorage`.
 - The renderer can observe key presence and a masked label, but never the saved plaintext key.
-- Voice preview requests (`Play` in voice selectors) are routed through main-process IPC, which decrypts the saved key transiently, performs a short non-live Gemini TTS call for the selected prebuilt voice, caches successful results in memory and aborts stale in-flight preview requests.
+- Voice preview requests (`Play` in voice selectors) are routed through main-process IPC, which first attempts bundled local WAV previews and then, only when missing, decrypts the saved key transiently and performs a short non-live Gemini TTS call with in-memory caching and quota-aware queued retry.
 
 ### Localization
 
@@ -177,7 +177,7 @@ The worker does not own UI state or browser media capture.
 - `src/main/settingsRepository.ts` owns versioned settings persistence and normalization entry points.
 - `src/main/security/secureStorage.ts` owns encrypted API-key storage.
 - `src/main/ipc/*.ts` expose settings, live, diagnostics and display-media IPC.
-- `src/main/ipc/live.ipc.ts` also owns non-live voice preview generation (`live:preview-voice`) via Gemini TTS, including preview request cancellation/deduplication and bounded in-memory preview caching, then returns preview audio blobs to the renderer.
+- `src/main/ipc/live.ipc.ts` also owns non-live voice preview generation (`live:preview-voice`), including bundled preview asset resolution, Gemini TTS fallback, bounded in-memory preview caching, sequential fallback scheduling, and quota-backoff retry handling before returning preview audio blobs to the renderer.
 - `src/main/workers/liveWorkerLauncher.ts` owns the utility-process handshake, command queueing, connect watchdog and process-tree shutdown.
 - `src/preload/bridges/*.ts` expose the minimal renderer bridge surface.
 - `src/renderer/app/routes.tsx` owns top-level navigation.

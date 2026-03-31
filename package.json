@@ -1,6 +1,6 @@
 {
   "name": "gemini-live-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Windows-only Electron desktop client for Gemini Live",
   "main": "dist/main/app.js",
   "author": "Codex",
@@ -12,6 +12,7 @@
     "build:renderer": "vite build",
     "build:electron": "tsc -p tsconfig.node.json",
     "build": "npm run clean && npm run build:renderer && npm run build:electron",
+    "generate:voice-previews": "node scripts/generate-voice-previews.mjs",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "test": "vitest run",
     "dist:win": "npm run build && electron-builder --win nsis portable"
@@ -44,6 +45,7 @@
     "productName": "Gemini Live Desktop",
     "files": [
       "dist/**/*",
+      "assets/voice-previews/**/*",
       "package.json"
     ],
     "directories": {

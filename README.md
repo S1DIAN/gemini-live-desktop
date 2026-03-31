@@ -62,10 +62,22 @@ Architecture boundaries and invariants: [docs/architecture.md](C:/Users/darkg/De
 ```powershell
 npm install
 npm run dev
+npm run generate:voice-previews
 npm run typecheck
 npm test
 npm run build
 npm run dist:win
+```
+
+## Automated Releases
+
+- Release publishing is automated with GitHub Actions in [.github/workflows/release.yml](C:/Users/darkg/Desktop/New/.github/workflows/release.yml).
+- Pushing a git tag triggers a Windows build and uploads installer assets to a GitHub Release for that tag.
+- Example release flow:
+
+```powershell
+git tag 0.1.1
+git push origin 0.1.1
 ```
 
 ## Workflow
@@ -73,14 +85,15 @@ npm run dist:win
 1. Start the app.
 2. Open Settings and paste a Gemini API key in the API field (saved automatically).
 3. Configure model, voice, interruption behavior (`Allow Interruption`), thinking mode (`off`/`auto`/`custom`), devices, visual settings, behavior (including proactive cooldown and significant-frame streak), and diagnostics options (changes are autosaved).
-4. Optionally open `Voice` dropdown and use `Play`/`Pause` next to any listed voice to preview it (short TTS sample, no Live connect required).
-5. Optionally enable `Show Live Timing Panel` in Diagnostics settings to surface per-turn latency checkpoints on the Call page.
-6. Return to the Call page and connect a live session.
-7. Enable microphone, camera, and screen capture as needed.
-8. Use realtime controls while connected.
-9. Use `Pause` to keep resumable state; use `Disconnect` for a full reset.
-10. Change connect-time options only after disconnect, then reconnect.
-11. Monitor transcript, diagnostics, proactive decisions, and optional live timing metrics in real time.
+4. Optionally pre-generate bundled voice previews (`en`/`ru`) by setting `GEMINI_API_KEY` and running `npm run generate:voice-previews` (use `-- --force` to regenerate existing files).
+5. Optionally open `Voice` dropdown and use `Play`/`Pause` next to any listed voice to preview it. The app first uses bundled local WAV previews (`assets/voice-previews`) and only falls back to Gemini TTS if a bundled sample is missing.
+6. Optionally enable `Show Live Timing Panel` in Diagnostics settings to surface per-turn latency checkpoints on the Call page.
+7. Return to the Call page and connect a live session.
+8. Enable microphone, camera, and screen capture as needed.
+9. Use realtime controls while connected.
+10. Use `Pause` to keep resumable state; use `Disconnect` for a full reset.
+11. Change connect-time options only after disconnect, then reconnect.
+12. Monitor transcript, diagnostics, proactive decisions, and optional live timing metrics in real time.
 
 ## Security
 
@@ -98,6 +111,8 @@ npm run dist:win
 - Supported models are `gemini-2.5-flash-native-audio-preview-12-2025` and `gemini-3.1-flash-live-preview`.
 - API version and capability toggles are auto-normalized by selected model profile (`gemini 3.1 flash live preview` is fixed to `v1beta` and disables proactive/affective features).
 - Thinking behavior is model-profile aware: `gemini 2.5 flash native audio` remains budget-driven, while `gemini 3.1 flash live preview` is level-first.
+- Voice preview prioritizes bundled local WAV samples from `assets/voice-previews/{en,ru}` and falls back to Gemini TTS only when a sample is missing.
+- Bundled preview generation is available via `npm run generate:voice-previews` (`GEMINI_API_KEY` required), with per-request pacing and quota-backoff retry.
 - `Pause` preserves resumable state; `Disconnect` starts a fresh session next time.
 - Renderer language is stored locally and applied as a speech-language override on the next connect.
 - Default voice list uses Gemini TTS voice names.
